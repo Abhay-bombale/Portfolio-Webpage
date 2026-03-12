@@ -9,6 +9,9 @@
     Deny from all
 </FilesMatch>
 
+# ── Custom 404 page ───────────────────────────────────────────────────────────
+ErrorDocument 404 /Portfolio-Webpage/404.php
+
 # ── Prevent directory listing ─────────────────────────────────────────────────
 Options -Indexes
 

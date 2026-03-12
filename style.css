@@ -587,7 +587,7 @@ a:hover {
 }
 
 .hero .btn {
-  animation: fadeInUp 0.8s ease 0.3s backwards;
+  animation: none;
 }
 
 @keyframes fadeInUp {
@@ -952,6 +952,11 @@ a:hover {
     margin: 0 auto;
   }
 
+  .hero-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .about,
   .skills,
   .projects,
@@ -1075,4 +1080,197 @@ a:hover {
 /* ── Dark mode: footer ─────────────────────────────────────────────────────── */
 [data-theme="dark"] .footer {
   background-color: #020617;
+}
+
+/* ── Skeleton Loading Screen ───────────────────────────────────────────────── */
+.skeleton-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: var(--bg-light);
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.4s ease;
+}
+
+.skeleton-loader.skeleton-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.skeleton-nav {
+  height: 64px;
+  background: var(--bg-gray);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.skeleton-hero {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4rem;
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.skeleton-hero-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.skeleton-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--bg-gray) 25%, var(--border-color) 50%, var(--bg-gray) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+.skeleton-line-lg { height: 2.5rem; width: 80%; }
+.skeleton-line-md { height: 1.2rem; width: 60%; }
+.skeleton-line-sm { height: 1rem; width: 90%; }
+
+.skeleton-btn {
+  width: 160px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--bg-gray) 25%, var(--border-color) 50%, var(--bg-gray) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  margin-top: 0.5rem;
+}
+
+.skeleton-avatar {
+  width: 300px;
+  height: 300px;
+  border-radius: 1rem;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, var(--bg-gray) 25%, var(--border-color) 50%, var(--bg-gray) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 768px) {
+  .skeleton-hero {
+    flex-direction: column-reverse;
+    gap: 2rem;
+  }
+  .skeleton-avatar {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+/* ── Hero Buttons Row ──────────────────────────────────────────────────────── */
+.hero-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  animation: fadeInUp 0.8s ease 0.3s backwards;
+}
+
+/* ── Typing Cursor ─────────────────────────────────────────────────────────── */
+#heroSubtitle {
+  min-height: 2.25rem;
+}
+
+/* ── Certifications Page ───────────────────────────────────────────────────── */
+.certifications-page {
+  padding: 6rem 0 5rem;
+  min-height: 70vh;
+}
+
+.certs-back-link {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.certs-back-link:hover {
+  opacity: 0.75;
+}
+
+.certs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.cert-card {
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.cert-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-color);
+}
+
+.cert-card-img-link {
+  display: block;
+  overflow: hidden;
+}
+
+.cert-card-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.cert-card:hover .cert-card-img {
+  transform: scale(1.03);
+}
+
+.cert-card-body {
+  padding: 1.25rem;
+}
+
+.cert-card-body h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 0.35rem;
+}
+
+.cert-card-meta {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.certs-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: var(--text-light);
+}
+
+.certs-empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Dark mode: certifications page ────────────────────────────────────────── */
+[data-theme="dark"] .cert-card {
+  background: var(--bg-gray);
 }

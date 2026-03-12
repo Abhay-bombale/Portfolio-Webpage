@@ -68,6 +68,20 @@ $stmt->bind_param('sss', $name, $email, $message);
 if ($stmt->execute()) {
     $stmt->close();
     $_SESSION['last_contact_submit'] = time();
+
+    // ── Send email notification ───────────────────────────────────────────────
+    $notifyEmail = '';
+    $r = $conn->query("SELECT setting_value FROM site_settings WHERE setting_key = 'notify_email'");
+    if ($r && $row = $r->fetch_assoc()) { $notifyEmail = trim($row['setting_value']); }
+    if ($notifyEmail !== '' && filter_var($notifyEmail, FILTER_VALIDATE_EMAIL)) {
+        $subject = 'New Contact Form Message from ' . $name;
+        $body    = "Name: $name\nEmail: $email\n\nMessage:\n$message";
+        $headers = "From: noreply@" . (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost') . "\r\n"
+                 . "Reply-To: $email\r\n"
+                 . "Content-Type: text/plain; charset=UTF-8";
+        @mail($notifyEmail, $subject, $body, $headers);
+    }
+
     respond(true, 'Message saved successfully!');
 } else {
     error_log('Execute failed: ' . $stmt->error);

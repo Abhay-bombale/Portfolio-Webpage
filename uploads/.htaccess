@@ -1,0 +1,14 @@
+# Only allow PDF and image files to be served from this directory
+<FilesMatch "\.(?!(pdf|jpg|jpeg|png|gif|webp)$)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Disable PHP execution
+<FilesMatch "\.php$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# No directory listing
+Options -Indexes

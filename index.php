@@ -6,16 +6,18 @@ $_skills   = array();
 $_projects = array();
 $_embeds   = array();
 $_settings = array(
-    'badge_text'    => 'Open to Work',
-    'badge_visible' => '1',
-    'tilt_enabled'  => '1',
+    'badge_text'     => 'Open to Work',
+    'badge_visible'  => '1',
+    'tilt_enabled'   => '1',
+    'notify_email'   => '',
+    'goatcounter_id' => '',
 );
 
 $_conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
 if (!$_conn->connect_error) {
     $_conn->set_charset('utf8mb4');
 
-    $r = $_conn->query('SELECT icon, title, description FROM skills ORDER BY id ASC');
+    $r = $_conn->query('SELECT icon, title, description FROM skills ORDER BY sort_order ASC, id ASC');
     if ($r) { while ($row = $r->fetch_assoc()) { $_skills[] = $row; } }
 
     $r = $_conn->query('SELECT icon, title, description, project_url, github_url FROM projects ORDER BY id ASC');
@@ -33,6 +35,7 @@ if (!$_conn->connect_error) {
 function eh($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
+$_cvExists = file_exists(__DIR__ . '/uploads/resume.pdf');
 ?>
 <!doctype html>
 <html lang="en">
@@ -150,6 +153,22 @@ function eh($s) {
 </head>
 <body>
 
+  <!-- Skeleton Loading Screen -->
+  <div id="skeletonLoader" class="skeleton-loader">
+    <div class="skeleton-nav"></div>
+    <div class="skeleton-hero">
+      <div class="skeleton-hero-text">
+        <div class="skeleton-line skeleton-line-lg"></div>
+        <div class="skeleton-line skeleton-line-lg" style="width:70%"></div>
+        <div class="skeleton-line skeleton-line-md"></div>
+        <div class="skeleton-line skeleton-line-sm"></div>
+        <div class="skeleton-line skeleton-line-sm" style="width:50%"></div>
+        <div class="skeleton-btn"></div>
+      </div>
+      <div class="skeleton-avatar"></div>
+    </div>
+  </div>
+
   <!-- Skip to main content (accessibility) -->
   <a href="#main-content" class="skip-link">Skip to main content</a>
 
@@ -167,6 +186,7 @@ function eh($s) {
           <li><a href="#home"     class="nav-link">Home</a></li>
           <li><a href="#about"    class="nav-link">About</a></li>
           <li><a href="#skills"   class="nav-link">Skills</a></li>
+          <li><a href="certifications.php" class="nav-link">Certs</a></li>
           <li><a href="#projects" class="nav-link">Projects</a></li>
           <?php if (!empty($_embeds)): ?>
           <li><a href="#social"   class="nav-link">Posts</a></li>
@@ -192,12 +212,17 @@ function eh($s) {
         <div class="hero-text">
             <h1 class="hero-title">Hello I'm</h1>
           <h1 class="hero-title">Abhay Bombale</h1>
-          <p class="hero-subtitle">Student | Aspiring Cybersecurity Analyst</p>
+          <p class="hero-subtitle" id="heroSubtitle" data-text="Student | Aspiring Cybersecurity Analyst"></p>
           <p class="hero-description">
             I am an aspiring cybersecurity professional focused on vulnerability research
             and defensive security.
           </p>
-          <a href="#contact" class="btn btn-primary">Contact Me</a>
+          <div class="hero-buttons">
+            <a href="#contact" class="btn btn-primary">Contact Me</a>
+            <?php if ($_cvExists): ?>
+              <a href="uploads/resume.pdf" class="btn btn-secondary" download>📄 Download CV</a>
+            <?php endif; ?>
+          </div>
         </div>
         <div class="hero-image">
           <div class="hero-card-wrap"
@@ -245,6 +270,7 @@ function eh($s) {
             operations by continuously learning emerging threats and implementing practical, defense-focused
             security solutions.
           </p>
+          <a href="certifications.php" class="btn btn-secondary" style="margin-top:1rem;display:inline-block;">View My Certifications →</a>
         </div>
       </div>
     </div>
@@ -409,5 +435,9 @@ function eh($s) {
   </footer>
 
   <script src="main.js" defer></script>
+  <?php if (!empty($_settings['goatcounter_id'])): ?>
+  <script data-goatcounter="https://<?= eh($_settings['goatcounter_id']) ?>.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <?php endif; ?>
 </body>
 </html>

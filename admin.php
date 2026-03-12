@@ -52,8 +52,16 @@ if ($loggedIn && $tab === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST' &&
         $badge_text    = trim(isset($_POST['badge_text'])    ? $_POST['badge_text']    : '');
         $badge_visible = isset($_POST['badge_visible'])      ? '1' : '0';
         $tilt_enabled  = isset($_POST['tilt_enabled'])       ? '1' : '0';
+        $notify_email  = trim(isset($_POST['notify_email'])  ? $_POST['notify_email']  : '');
+        $goatcounter   = trim(isset($_POST['goatcounter_id'])? $_POST['goatcounter_id'] : '');
 
-        $keys = array('badge_text' => $badge_text, 'badge_visible' => $badge_visible, 'tilt_enabled' => $tilt_enabled);
+        $keys = array(
+            'badge_text'     => $badge_text,
+            'badge_visible'  => $badge_visible,
+            'tilt_enabled'   => $tilt_enabled,
+            'notify_email'   => $notify_email,
+            'goatcounter_id' => $goatcounter,
+        );
         foreach ($keys as $k => $v) {
             $stmt = db()->prepare('INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
             $stmt->bind_param('ss', $k, $v);
@@ -65,7 +73,7 @@ if ($loggedIn && $tab === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST' &&
 }
 
 // Load current settings for the settings tab
-$siteSettings = array('badge_text' => 'Open to Work', 'badge_visible' => '1', 'tilt_enabled' => '1');
+$siteSettings = array('badge_text' => 'Open to Work', 'badge_visible' => '1', 'tilt_enabled' => '1', 'notify_email' => '', 'goatcounter_id' => '');
 if ($loggedIn && $tab === 'settings') {
     $r = db()->query('SELECT setting_key, setting_value FROM site_settings');
     if ($r) { while ($row = $r->fetch_assoc()) { $siteSettings[$row['setting_key']] = $row['setting_value']; } }
@@ -82,9 +90,10 @@ if ($loggedIn && $tab === 'skills') {
             $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
             $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
             $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
+            $sort  = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
             if ($title !== '' && $desc !== '') {
-                $stmt = db()->prepare('INSERT INTO skills (icon, title, description) VALUES (?, ?, ?)');
-                $stmt->bind_param('sss', $icon, $title, $desc);
+                $stmt = db()->prepare('INSERT INTO skills (icon, title, description, sort_order) VALUES (?, ?, ?, ?)');
+                $stmt->bind_param('sssi', $icon, $title, $desc, $sort);
                 $stmt->execute();
                 $stmt->close();
             }
@@ -107,8 +116,9 @@ if ($loggedIn && $tab === 'skills') {
             $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
             $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
             $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
-            $stmt  = db()->prepare('UPDATE skills SET icon=?, title=?, description=? WHERE id=?');
-            $stmt->bind_param('sssi', $icon, $title, $desc, $id);
+            $sort  = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+            $stmt  = db()->prepare('UPDATE skills SET icon=?, title=?, description=?, sort_order=? WHERE id=?');
+            $stmt->bind_param('sssii', $icon, $title, $desc, $sort, $id);
             $stmt->execute();
             $stmt->close();
         }
@@ -185,6 +195,139 @@ if ($loggedIn && $tab === 'projects') {
         $stmt->close();
         header('Location: ' . $baseUrl . '?tab=projects'); exit;
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CERTIFICATIONS ACTIONS (image-based)
+// ══════════════════════════════════════════════════════════════════════════════
+$editCert = null;
+$certUploadDir = __DIR__ . '/uploads/certs/';
+if (!is_dir($certUploadDir)) { @mkdir($certUploadDir, 0755, true); }
+
+if ($loggedIn && $tab === 'certs') {
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_cert'])) {
+        if (verifyCsrf()) {
+            $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
+            $issuer = trim(isset($_POST['issuer']) ? $_POST['issuer'] : '');
+            $date   = trim(isset($_POST['issued_date']) ? $_POST['issued_date'] : '');
+            $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+            $imgName = '';
+            if (isset($_FILES['cert_image']) && $_FILES['cert_image']['error'] === UPLOAD_ERR_OK) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime  = finfo_file($finfo, $_FILES['cert_image']['tmp_name']);
+                finfo_close($finfo);
+                $allowed = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
+                if (in_array($mime, $allowed) && $_FILES['cert_image']['size'] <= 5 * 1024 * 1024) {
+                    $ext = array('image/jpeg'=>'jpg','image/png'=>'png','image/gif'=>'gif','image/webp'=>'webp');
+                    $imgName = 'cert_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext[$mime];
+                    move_uploaded_file($_FILES['cert_image']['tmp_name'], $certUploadDir . $imgName);
+                }
+            }
+            if ($title !== '') {
+                $stmt = db()->prepare('INSERT INTO certifications (title, issuer, image_path, issued_date, sort_order) VALUES (?, ?, ?, ?, ?)');
+                $stmt->bind_param('ssssi', $title, $issuer, $imgName, $date, $sort);
+                $stmt->execute();
+                $stmt->close();
+            }
+        }
+        header('Location: ' . $baseUrl . '?tab=certs'); exit;
+    }
+
+    if (isset($_GET['edit_cert'])) {
+        $id   = (int)$_GET['edit_cert'];
+        $stmt = db()->prepare('SELECT * FROM certifications WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $editCert = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_cert'])) {
+        if (verifyCsrf()) {
+            $id     = (int)$_POST['cert_id'];
+            $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
+            $issuer = trim(isset($_POST['issuer']) ? $_POST['issuer'] : '');
+            $date   = trim(isset($_POST['issued_date']) ? $_POST['issued_date'] : '');
+            $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+            // Handle optional new image upload
+            $newImg = '';
+            if (isset($_FILES['cert_image']) && $_FILES['cert_image']['error'] === UPLOAD_ERR_OK) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime  = finfo_file($finfo, $_FILES['cert_image']['tmp_name']);
+                finfo_close($finfo);
+                $allowed = array('image/jpeg', 'image/png', 'image/gif', 'image/webp');
+                if (in_array($mime, $allowed) && $_FILES['cert_image']['size'] <= 5 * 1024 * 1024) {
+                    $ext = array('image/jpeg'=>'jpg','image/png'=>'png','image/gif'=>'gif','image/webp'=>'webp');
+                    $newImg = 'cert_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext[$mime];
+                    move_uploaded_file($_FILES['cert_image']['tmp_name'], $certUploadDir . $newImg);
+                    // Delete old image
+                    $old = db()->prepare('SELECT image_path FROM certifications WHERE id = ?');
+                    $old->bind_param('i', $id);
+                    $old->execute();
+                    $oldRow = $old->get_result()->fetch_assoc();
+                    $old->close();
+                    if ($oldRow && $oldRow['image_path'] !== '') {
+                        $oldFile = $certUploadDir . $oldRow['image_path'];
+                        if (file_exists($oldFile)) { @unlink($oldFile); }
+                    }
+                }
+            }
+            if ($newImg !== '') {
+                $stmt = db()->prepare('UPDATE certifications SET title=?, issuer=?, image_path=?, issued_date=?, sort_order=? WHERE id=?');
+                $stmt->bind_param('ssssii', $title, $issuer, $newImg, $date, $sort, $id);
+            } else {
+                $stmt = db()->prepare('UPDATE certifications SET title=?, issuer=?, issued_date=?, sort_order=? WHERE id=?');
+                $stmt->bind_param('sssii', $title, $issuer, $date, $sort, $id);
+            }
+            $stmt->execute();
+            $stmt->close();
+        }
+        header('Location: ' . $baseUrl . '?tab=certs'); exit;
+    }
+
+    if (isset($_GET['delete_cert'])) {
+        $id   = (int)$_GET['delete_cert'];
+        // Delete image file
+        $stmt = db()->prepare('SELECT image_path FROM certifications WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row && $row['image_path'] !== '') {
+            $f = $certUploadDir . $row['image_path'];
+            if (file_exists($f)) { @unlink($f); }
+        }
+        $stmt = db()->prepare('DELETE FROM certifications WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $stmt->close();
+        header('Location: ' . $baseUrl . '?tab=certs'); exit;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CV UPLOAD (Settings tab)
+// ══════════════════════════════════════════════════════════════════════════════
+$cvUploaded = false;
+if ($loggedIn && $tab === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_cv'])) {
+    if (verifyCsrf()) {
+        if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] === UPLOAD_ERR_OK) {
+            $tmpName  = $_FILES['cv_file']['tmp_name'];
+            $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $tmpName);
+            finfo_close($finfo);
+            if ($mimeType === 'application/pdf' && $_FILES['cv_file']['size'] <= 5 * 1024 * 1024) {
+                $dest = __DIR__ . '/uploads/resume.pdf';
+                move_uploaded_file($tmpName, $dest);
+                $cvUploaded = true;
+            }
+        }
+    }
+    if (!$cvUploaded) {
+        header('Location: ' . $baseUrl . '?tab=settings&cv_error=1'); exit;
+    }
+    header('Location: ' . $baseUrl . '?tab=settings&cv_ok=1'); exit;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -292,9 +435,10 @@ if ($loggedIn && $tab === 'messages') {
 $skills   = array();
 $projects = array();
 $embeds   = array();
+$certs    = array();
 if ($loggedIn) {
     if ($tab === 'skills') {
-        $r = db()->query('SELECT * FROM skills ORDER BY id ASC');
+        $r = db()->query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC');
         if ($r) { while ($row = $r->fetch_assoc()) { $skills[] = $row; } }
     }
     if ($tab === 'projects') {
@@ -304,6 +448,10 @@ if ($loggedIn) {
     if ($tab === 'embeds') {
         $r = db()->query('SELECT * FROM social_embeds ORDER BY sort_order ASC, id ASC');
         if ($r) { while ($row = $r->fetch_assoc()) { $embeds[] = $row; } }
+    }
+    if ($tab === 'certs') {
+        $r = db()->query('SELECT * FROM certifications ORDER BY sort_order ASC, id ASC');
+        if ($r) { while ($row = $r->fetch_assoc()) { $certs[] = $row; } }
     }
 }
 
@@ -457,6 +605,7 @@ function pageUrl($page, $search, $base) {
 <div class="tabs">
   <a href="?tab=messages" class="tab-link <?php echo $tab==='messages'?'active':''; ?>">📨 Messages</a>
   <a href="?tab=skills"   class="tab-link <?php echo $tab==='skills'  ?'active':''; ?>">🔧 Skills</a>
+  <a href="?tab=certs"    class="tab-link <?php echo $tab==='certs'   ?'active':''; ?>">� Certifications</a>
   <a href="?tab=projects" class="tab-link <?php echo $tab==='projects'?'active':''; ?>">🚀 Projects</a>
   <a href="?tab=embeds"   class="tab-link <?php echo $tab==='embeds'  ?'active':''; ?>">📌 Social Embeds</a>
   <a href="?tab=settings" class="tab-link <?php echo $tab==='settings'?'active':''; ?>">⚙️ Settings</a>
@@ -570,6 +719,10 @@ function pageUrl($page, $search, $base) {
           <label>Description *</label>
           <textarea name="desc" rows="3" required maxlength="300"><?php echo e($editSkill['description']); ?></textarea>
         </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="<?php echo (int)$editSkill['sort_order']; ?>" placeholder="0" />
+        </div>
       </div>
       <div class="panel-actions">
         <button type="submit" name="save_skill" class="btn btn-success">Save Changes</button>
@@ -595,6 +748,10 @@ function pageUrl($page, $search, $base) {
           <label>Description *</label>
           <textarea name="desc" rows="3" required maxlength="300" placeholder="Brief description…"></textarea>
         </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="0" placeholder="0" />
+        </div>
       </div>
       <div class="panel-actions">
         <button type="submit" name="add_skill" class="btn btn-primary">Add Skill</button>
@@ -618,11 +775,126 @@ function pageUrl($page, $search, $base) {
             <div class="item-card-title"><?php echo e($s['title']); ?></div>
           </div>
           <div class="item-card-desc"><?php echo e($s['description']); ?></div>
+          <div class="item-card-meta" style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;">Sort Order: <?php echo (int)$s['sort_order']; ?></div>
           <div class="item-card-footer">
             <a href="?tab=skills&edit_skill=<?php echo (int)$s['id']; ?>" class="btn btn-warning">✏️ Edit</a>
             <a href="?tab=skills&delete_skill=<?php echo (int)$s['id']; ?>"
                class="btn btn-danger"
                onclick="return confirm('Delete skill: <?php echo e(addslashes($s['title'])); ?>?')">🗑 Delete</a>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+<!-- ═══════════════════════ CERTIFICATIONS TAB ═══════════════════════════════ -->
+<?php elseif ($tab === 'certs'): ?>
+
+  <?php if (!empty($editCert)): ?>
+  <div class="panel">
+    <h3>✏️ Edit Certification — <?php echo e($editCert['title']); ?></h3>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <input type="hidden" name="cert_id" value="<?php echo (int)$editCert['id']; ?>" />
+      <div class="panel-grid">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" name="title" value="<?php echo e($editCert['title']); ?>" required maxlength="255" />
+        </div>
+        <div class="form-group">
+          <label>Issuer</label>
+          <input type="text" name="issuer" value="<?php echo e($editCert['issuer']); ?>" placeholder="e.g. CompTIA" maxlength="255" />
+        </div>
+        <div class="form-group">
+          <label>Date Issued</label>
+          <input type="text" name="issued_date" value="<?php echo e($editCert['issued_date']); ?>" placeholder="e.g. Jan 2026" maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="<?php echo (int)$editCert['sort_order']; ?>" placeholder="0" />
+        </div>
+        <div class="form-group span-2">
+          <label>Certificate Image (leave empty to keep current)</label>
+          <input type="file" name="cert_image" accept="image/jpeg,image/png,image/gif,image/webp" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 5 MB · JPG, PNG, GIF, WebP</p>
+          <?php if ($editCert['image_path'] !== ''): ?>
+            <div style="margin-top:.5rem;">
+              <img src="uploads/certs/<?php echo e($editCert['image_path']); ?>" alt="Current certificate image" style="max-width:200px;border-radius:6px;border:1px solid var(--border);" />
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="save_cert" class="btn btn-success">Save Changes</button>
+        <a href="?tab=certs" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+  <?php else: ?>
+  <div class="panel">
+    <h3>➕ Add Certification</h3>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <div class="panel-grid">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" name="title" required maxlength="255" placeholder="e.g. Google Cybersecurity Certificate" />
+        </div>
+        <div class="form-group">
+          <label>Issuer</label>
+          <input type="text" name="issuer" placeholder="e.g. Google / Coursera" maxlength="255" />
+        </div>
+        <div class="form-group">
+          <label>Date Issued</label>
+          <input type="text" name="issued_date" placeholder="e.g. Jan 2026" maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="0" placeholder="0" />
+        </div>
+        <div class="form-group span-2">
+          <label>Certificate Image</label>
+          <input type="file" name="cert_image" accept="image/jpeg,image/png,image/gif,image/webp" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 5 MB · JPG, PNG, GIF, WebP</p>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="add_cert" class="btn btn-primary">Add Certification</button>
+      </div>
+    </form>
+  </div>
+  <?php endif; ?>
+
+  <div class="section-header">
+    <h2>All Certifications <span style="color:var(--muted);font-weight:400;font-size:.9rem;">(<?php echo count($certs); ?>)</span></h2>
+  </div>
+
+  <?php if (empty($certs)): ?>
+    <div class="empty-state"><div class="icon">🎓</div><p>No certifications yet. Add your first certification above.</p></div>
+  <?php else: ?>
+    <div class="cards-grid">
+      <?php foreach ($certs as $c): ?>
+        <div class="item-card">
+          <?php if ($c['image_path'] !== ''): ?>
+            <img src="uploads/certs/<?php echo e($c['image_path']); ?>" alt="<?php echo e($c['title']); ?>" style="width:100%;border-radius:6px;border:1px solid var(--border);max-height:180px;object-fit:cover;" />
+          <?php endif; ?>
+          <div class="item-card-header">
+            <div>
+              <div class="item-card-title"><?php echo e($c['title']); ?></div>
+              <?php if ($c['issuer'] !== ''): ?>
+                <div style="font-size:.8rem;color:var(--muted);margin-top:.15rem;"><?php echo e($c['issuer']); ?></div>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php if ($c['issued_date'] !== ''): ?>
+            <div style="font-size:.82rem;color:var(--accent-h);">📅 <?php echo e($c['issued_date']); ?></div>
+          <?php endif; ?>
+          <div style="font-size:.78rem;color:var(--muted);">Sort Order: <?php echo (int)$c['sort_order']; ?></div>
+          <div class="item-card-footer">
+            <a href="?tab=certs&edit_cert=<?php echo (int)$c['id']; ?>" class="btn btn-warning">✏️ Edit</a>
+            <a href="?tab=certs&delete_cert=<?php echo (int)$c['id']; ?>"
+               class="btn btn-danger"
+               onclick="return confirm('Delete certification: <?php echo e(addslashes($c['title'])); ?>?')">🗑 Delete</a>
           </div>
         </div>
       <?php endforeach; ?>
@@ -835,6 +1107,15 @@ function pageUrl($page, $search, $base) {
       ✅ Settings saved successfully.
     </div>
   <?php endif; ?>
+  <?php if (isset($_GET['cv_ok'])): ?>
+    <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#16a34a;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+      ✅ Resume/CV uploaded successfully.
+    </div>
+  <?php elseif (isset($_GET['cv_error'])): ?>
+    <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+      ❌ Upload failed. Only PDF files up to 5 MB are accepted.
+    </div>
+  <?php endif; ?>
 
   <div class="panel" style="max-width:560px;">
     <h3>🖼️ Hero Image Settings</h3>
@@ -878,8 +1159,61 @@ function pageUrl($page, $search, $base) {
         <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem;">Max 40 characters. Shown only when badge is enabled.</div>
       </div>
 
+      <!-- Notification Email -->
+      <div class="form-group" style="margin-bottom:1.2rem;">
+        <label>Notification Email</label>
+        <input type="email" name="notify_email"
+               value="<?php echo e($siteSettings['notify_email']); ?>"
+               maxlength="200"
+               placeholder="e.g. bombleabhay24@gmail.com" />
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem;">Receive email when someone submits the contact form. Leave blank to disable.</div>
+      </div>
+
+      <!-- GoatCounter ID -->
+      <div class="form-group" style="margin-bottom:1.2rem;">
+        <label>GoatCounter ID</label>
+        <input type="text" name="goatcounter_id"
+               value="<?php echo e($siteSettings['goatcounter_id']); ?>"
+               maxlength="80"
+               placeholder="e.g. abhay-portfolio" />
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.4rem;">
+          Free privacy-friendly analytics. Sign up at <a href="https://www.goatcounter.com" target="_blank" rel="noopener" style="color:var(--accent-h);">goatcounter.com</a>, create a site, and enter the code (e.g. <code>abhay-portfolio</code> if your dashboard is abhay-portfolio.goatcounter.com). Leave blank to disable.
+        </div>
+      </div>
+
       <div class="panel-actions">
         <button type="submit" name="save_settings" class="btn btn-primary">Save Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- CV Upload -->
+  <div class="panel" style="max-width:560px;">
+    <h3>📄 Resume / CV</h3>
+    <p class="panel-hint">Upload your resume as a PDF (max 5 MB). A "Download CV" button will appear in the hero section.</p>
+    <?php $cvExists = file_exists(__DIR__ . '/uploads/resume.pdf'); ?>
+    <?php if ($cvExists): ?>
+      <div style="display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;margin-bottom:1rem;">
+        <span style="font-size:1.3rem;">✅</span>
+        <div>
+          <div style="font-weight:600;font-size:.9rem;">resume.pdf uploaded</div>
+          <div style="font-size:.78rem;color:var(--muted);">Size: <?php echo round(filesize(__DIR__ . '/uploads/resume.pdf') / 1024); ?> KB</div>
+        </div>
+      </div>
+    <?php else: ?>
+      <div style="padding:.8rem 1rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;margin-bottom:1rem;font-size:.88rem;color:var(--warning);">
+        ⚠️ No resume uploaded yet. Upload below to show the "Download CV" button.
+      </div>
+    <?php endif; ?>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <div class="form-group">
+        <label>PDF File</label>
+        <input type="file" name="cv_file" accept=".pdf,application/pdf" required
+               style="padding:.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);width:100%;" />
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="upload_cv" class="btn btn-primary"><?php echo $cvExists ? 'Replace CV' : 'Upload CV'; ?></button>
       </div>
     </form>
   </div>

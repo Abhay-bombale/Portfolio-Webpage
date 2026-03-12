@@ -2,6 +2,33 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+// ─── Skeleton loader — hide after page is ready ──────────────────────────────
+var skeleton = document.getElementById('skeletonLoader')
+if (skeleton) {
+  skeleton.classList.add('skeleton-hidden')
+  setTimeout(function() { skeleton.remove() }, 500)
+}
+
+// ─── Typing animation on hero subtitle ───────────────────────────────────────
+var heroSub = document.getElementById('heroSubtitle')
+if (heroSub) {
+  var text = heroSub.getAttribute('data-text') || ''
+  var i = 0
+  heroSub.textContent = ''
+  heroSub.style.borderRight = '2px solid var(--primary-color)'
+  function typeChar() {
+    if (i < text.length) {
+      heroSub.textContent += text.charAt(i)
+      i++
+      setTimeout(typeChar, 60)
+    } else {
+      // Blink cursor then remove
+      setTimeout(function() { heroSub.style.borderRight = 'none' }, 2000)
+    }
+  }
+  typeChar()
+}
+
 // ─── Reduced motion check ────────────────────────────────────────────────────
 var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -284,7 +311,7 @@ if (backToTop) {
 
 // ─── Scroll reveal animations ────────────────────────────────────────────────
 if (!prefersReducedMotion) {
-  var revealElements = document.querySelectorAll('.skill-card, .project-card, .about-text')
+  var revealElements = document.querySelectorAll('.skill-card, .project-card, .about-text, .cert-card')
   if (revealElements.length && 'IntersectionObserver' in window) {
     var revealObserver = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `skills` (
   `icon`        VARCHAR(20)     NOT NULL DEFAULT '',
   `title`       VARCHAR(100)    NOT NULL,
   `description` VARCHAR(300)    NOT NULL,
+  `sort_order`  SMALLINT        NOT NULL DEFAULT 0,
   `created_at`  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -52,11 +53,25 @@ CREATE TABLE IF NOT EXISTS `site_settings` (
   PRIMARY KEY (`setting_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Certifications table (image-based)
+CREATE TABLE IF NOT EXISTS `certifications` (
+  `id`          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `title`       VARCHAR(255)    NOT NULL,
+  `issuer`      VARCHAR(255)    NOT NULL DEFAULT '',
+  `image_path`  VARCHAR(255)    NOT NULL DEFAULT '',
+  `issued_date` VARCHAR(100)    NOT NULL DEFAULT '',
+  `sort_order`  INT             NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Seed default settings (safe to re-run — INSERT IGNORE won't overwrite existing values)
 INSERT IGNORE INTO `site_settings` (`setting_key`, `setting_value`) VALUES
   ('badge_text',       'Open to Work'),
   ('badge_visible',    '1'),
-  ('tilt_enabled',     '1');
+  ('tilt_enabled',     '1'),
+  ('notify_email',     'bombleabhay24@gmail.com'),
+  ('goatcounter_id',   '');
 
 -- ── Indexes for better query performance ──────────────────────────────────────
 -- MySQL/MariaDB will silently skip if the index already exists (CREATE INDEX IF NOT EXISTS
@@ -68,6 +83,7 @@ ALTER TABLE `contacts` ADD INDEX `idx_contacts_created_at` (`created_at`);
 ALTER TABLE `contacts` ADD INDEX `idx_contacts_email` (`email`);
 
 -- ── Add updated_at columns ────────────────────────────────────────────────────
+ALTER TABLE `skills`   ADD COLUMN IF NOT EXISTS `sort_order`  SMALLINT  NOT NULL DEFAULT 0 AFTER `description`;
 ALTER TABLE `skills`   ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
 ALTER TABLE `projects`  ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
 
