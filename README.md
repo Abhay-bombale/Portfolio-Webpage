@@ -13,6 +13,3 @@ A personal portfolio website built from scratch.
 - Contact form with MySQL backend
 - Admin panel (messages, skills, projects, social embeds)
 - 3D tilt hero image with status badge
-
-## 🔐 Note
-Credentials and database config are not included in this repository.
