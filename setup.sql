@@ -58,6 +58,19 @@ INSERT IGNORE INTO `site_settings` (`setting_key`, `setting_value`) VALUES
   ('badge_visible',    '1'),
   ('tilt_enabled',     '1');
 
+-- ── Indexes for better query performance ──────────────────────────────────────
+-- MySQL/MariaDB will silently skip if the index already exists (CREATE INDEX IF NOT EXISTS
+-- is not available in all versions, so we use a safe procedure approach below).
+
+-- Index on contacts.created_at for sorting recent submissions
+ALTER TABLE `contacts` ADD INDEX `idx_contacts_created_at` (`created_at`);
+-- Index on contacts.email for lookups
+ALTER TABLE `contacts` ADD INDEX `idx_contacts_email` (`email`);
+
+-- ── Add updated_at columns ────────────────────────────────────────────────────
+ALTER TABLE `skills`   ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
+ALTER TABLE `projects`  ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
+
 -- ── Optional: seed your existing hardcoded skills so the site isn't empty ─────
 -- Remove the comment markers below if you want them pre-populated.
 

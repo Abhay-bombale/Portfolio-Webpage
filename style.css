@@ -14,6 +14,132 @@
   --transition: all 0.3s ease;
 }
 
+/* Dark mode */
+[data-theme="dark"] {
+  --primary-color: #3b82f6;
+  --primary-hover: #60a5fa;
+  --secondary-color: #94a3b8;
+  --text-dark: #f1f5f9;
+  --text-light: #94a3b8;
+  --bg-light: #0f172a;
+  --bg-gray: #1e293b;
+  --border-color: #334155;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* ── Skip to content (accessibility) ───────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  background: var(--primary-color);
+  color: #fff;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+  z-index: 9999;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  color: #fff;
+}
+
+/* ── Focus visible outlines (accessibility) ────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* ── Theme toggle button ───────────────────────────────────────────────────── */
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  line-height: 1;
+  transition: var(--transition);
+}
+
+.theme-toggle:hover {
+  border-color: var(--primary-color);
+  background-color: var(--bg-gray);
+}
+
+.theme-icon-dark { display: none; }
+[data-theme="dark"] .theme-icon-light { display: none; }
+[data-theme="dark"] .theme-icon-dark { display: inline; }
+
+/* ── Back to top button ────────────────────────────────────────────────────── */
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease, background-color 0.3s ease;
+  z-index: 999;
+  box-shadow: var(--shadow-md);
+}
+
+.back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.back-to-top:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+/* ── Character counter ─────────────────────────────────────────────────────── */
+.char-counter {
+  display: block;
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.35rem;
+}
+
+/* ── Scroll reveal animations ──────────────────────────────────────────────── */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Reduce motion ─────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+  .reveal-on-scroll { opacity: 1; transform: none; }
+}
+
 /* Reset and Base Styles */
 * {
   margin: 0;
@@ -146,6 +272,15 @@ a:hover {
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
   border-bottom-color: rgba(229, 231, 235, 0.6);
+}
+
+[data-theme="dark"] .navbar {
+  background-color: var(--bg-light);
+}
+
+[data-theme="dark"] .navbar.scrolled {
+  background-color: rgba(15, 23, 42, 0.85);
+  border-bottom-color: rgba(51, 65, 85, 0.6);
 }
 
 .nav-content {
@@ -715,6 +850,10 @@ a:hover {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
 
+  [data-theme="dark"] .nav-links {
+    background-color: rgba(15, 23, 42, 0.97);
+  }
+
   .nav-links.active {
     max-height: 420px;
   }
@@ -889,4 +1028,51 @@ a:hover {
   display: flex !important;
   justify-content: center;
   width: 100%;
+}
+
+/* ── Dark mode: hero badge ─────────────────────────────────────────────────── */
+[data-theme="dark"] .hero-badge {
+  background: var(--bg-gray);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: var(--text-dark);
+}
+
+/* ── Dark mode: LinkedIn card ──────────────────────────────────────────────── */
+[data-theme="dark"] .li-profile-card {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
+}
+
+[data-theme="dark"] .li-profile-card .li-name { color: var(--text-dark); }
+[data-theme="dark"] .li-profile-card .li-title { color: var(--text-light); }
+
+[data-theme="dark"] .li-badge-wrap {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
+}
+
+/* ── Dark mode: form inputs ────────────────────────────────────────────────── */
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group textarea {
+  background-color: var(--bg-gray);
+  border-color: var(--border-color);
+  color: var(--text-dark);
+}
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* ── Dark mode: social icons ───────────────────────────────────────────────── */
+[data-theme="dark"] .social-icon {
+  background-color: var(--bg-gray);
+  border-color: var(--border-color);
+  color: var(--text-dark);
+}
+
+/* ── Dark mode: footer ─────────────────────────────────────────────────────── */
+[data-theme="dark"] .footer {
+  background-color: #020617;
 }

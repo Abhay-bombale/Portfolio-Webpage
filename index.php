@@ -1,27 +1,6 @@
 <?php
-// ── Load .env ─────────────────────────────────────────────────────────────────
-function loadEnv($path) {
-    if (!file_exists($path)) return;
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) continue;
-        $parts = explode('=', $line, 2);
-        if (count($parts) === 2) {
-            $_ENV[trim($parts[0])] = trim($parts[1]);
-        }
-    }
-}
-loadEnv(__DIR__ . '/.env');
-
-// ── Auto-detect local vs live and pick credentials ───────────────────────────
-$isLocal = isset($_SERVER['SERVER_NAME']) &&
-           in_array($_SERVER['SERVER_NAME'], array('localhost', '127.0.0.1'));
-
-$db_host = $isLocal ? $_ENV['LOCAL_DB_HOST'] : $_ENV['LIVE_DB_HOST'];
-$db_user = $isLocal ? $_ENV['LOCAL_DB_USER'] : $_ENV['LIVE_DB_USER'];
-$db_pass = $isLocal ? $_ENV['LOCAL_DB_PASS'] : $_ENV['LIVE_DB_PASS'];
-$db_name = $isLocal ? $_ENV['LOCAL_DB_NAME'] : $_ENV['LIVE_DB_NAME'];
+require_once __DIR__ . '/config.php';
+sendSecurityHeaders();
 
 $_skills   = array();
 $_projects = array();
@@ -52,7 +31,7 @@ if (!$_conn->connect_error) {
 }
 
 function eh($s) {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 ?>
 <!doctype html>
@@ -62,11 +41,30 @@ function eh($s) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Abhay | Student & Aspiring Cybersecurity Analyst</title>
   <meta name="description" content="Abhay Bombale's personal portfolio showcasing cybersecurity skills and projects." />
+  <link rel="canonical" href="https://yourwebsite.com/" />
+  <meta property="og:type" content="website" />
   <meta property="og:title" content="Abhay Bombale | Portfolio" />
   <meta property="og:description" content="Student & Aspiring Cybersecurity Analyst" />
   <meta property="og:url" content="https://yourwebsite.com" />
-  <meta property="og:image" content="Profile.png" />
+  <meta property="og:image" content="https://yourwebsite.com/Profile.png" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Abhay Bombale | Portfolio" />
+  <meta name="twitter:description" content="Student & Aspiring Cybersecurity Analyst" />
+  <meta name="twitter:image" content="https://yourwebsite.com/Profile.png" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Abhay Bombale",
+    "url": "https://yourwebsite.com",
+    "jobTitle": "Student & Aspiring Cybersecurity Analyst",
+    "sameAs": [
+      "https://www.linkedin.com/in/abhaybombale/",
+      "https://github.com/Abhay-bombale",
+      "https://x.com/AbhayBombale"
+    ]
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
@@ -152,8 +150,11 @@ function eh($s) {
 </head>
 <body>
 
+  <!-- Skip to main content (accessibility) -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <!-- Navigation Bar -->
-  <nav class="navbar">
+  <nav class="navbar" role="navigation" aria-label="Main navigation">
     <div class="container">
       <div class="nav-content">
         <a href="index.php" class="logo">Abhay</a>
@@ -171,10 +172,18 @@ function eh($s) {
           <li><a href="#social"   class="nav-link">Posts</a></li>
           <?php endif; ?>
           <li><a href="#contact"  class="nav-link">Contact</a></li>
+          <li>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="theme-icon-light">☀️</span>
+              <span class="theme-icon-dark">🌙</span>
+            </button>
+          </li>
         </ul>
       </div>
     </div>
   </nav>
+
+  <main id="main-content">
 
   <!-- Hero Section -->
   <section id="home" class="hero">
@@ -199,7 +208,7 @@ function eh($s) {
               <div class="hero-card-glow"></div>
               <!-- The card itself -->
               <div class="hero-card-inner">
-                <img src="Profile.png" alt="Abhay Bombale" />
+                <img src="Profile.png" alt="Photo of Abhay Bombale" loading="lazy" />
               </div>
               <!-- Badge — only rendered if visible -->
               <?php if ($_settings['badge_visible'] === '1' && $_settings['badge_text'] !== ''): ?>
@@ -322,17 +331,22 @@ function eh($s) {
       <h2>Get In Touch</h2>
       <div class="contact-content">
         <form class="contact-form" id="contactForm" novalidate>
+          <!-- Honeypot field — hidden from real users, catches bots -->
+          <div style="position:absolute;left:-9999px;" aria-hidden="true">
+            <input type="text" name="website" tabindex="-1" autocomplete="off" />
+          </div>
           <div class="form-group">
             <label for="name">Name</label>
-            <input type="text" id="name" name="name" required autocomplete="name" placeholder="Your name" />
+            <input type="text" id="name" name="name" required autocomplete="name" placeholder="Your name" maxlength="100" />
           </div>
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required autocomplete="email" placeholder="your@email.com" />
+            <input type="email" id="email" name="email" required autocomplete="email" placeholder="your@email.com" maxlength="150" />
           </div>
           <div class="form-group">
             <label for="message">Message</label>
-            <textarea id="message" name="message" rows="5" required placeholder="Your message..."></textarea>
+            <textarea id="message" name="message" rows="5" required placeholder="Your message..." maxlength="2000"></textarea>
+            <span id="charCount" class="char-counter">0 / 2000</span>
           </div>
           <button type="submit" class="btn btn-primary" id="submitBtn">Send Message</button>
           <p id="formStatus" role="status" aria-live="polite" style="margin-top:1rem;font-weight:500;display:none;"></p>
@@ -378,6 +392,11 @@ function eh($s) {
       </div>
     </div>
   </section>
+
+  </main>
+
+  <!-- Back to Top Button -->
+  <button id="backToTop" class="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
 
   <!-- Footer -->
   <footer class="footer">

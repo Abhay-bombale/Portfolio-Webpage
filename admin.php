@@ -1,70 +1,35 @@
 <?php
-// ── Load .env ─────────────────────────────────────────────────────────────────
-function loadEnv($path) {
-    if (!file_exists($path)) return;
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) continue;
-        $parts = explode('=', $line, 2);
-        if (count($parts) === 2) {
-            $_ENV[trim($parts[0])] = trim($parts[1]);
-        }
-    }
-}
-loadEnv(__DIR__ . '/.env');
+require_once __DIR__ . '/config.php';
+sendSecurityHeaders();
+initSession();
 
-// ── Auto-detect local vs live ─────────────────────────────────────────────────
-$isLocal = isset($_SERVER['SERVER_NAME']) &&
-           in_array($_SERVER['SERVER_NAME'], array('localhost', '127.0.0.1'));
-
-$db_host    = $isLocal ? $_ENV['LOCAL_DB_HOST'] : $_ENV['LIVE_DB_HOST'];
-$db_user    = $isLocal ? $_ENV['LOCAL_DB_USER'] : $_ENV['LIVE_DB_USER'];
-$db_pass    = $isLocal ? $_ENV['LOCAL_DB_PASS'] : $_ENV['LIVE_DB_PASS'];
-$db_name    = $isLocal ? $_ENV['LOCAL_DB_NAME'] : $_ENV['LIVE_DB_NAME'];
 $ADMIN_USER = $_ENV['ADMIN_USER'];
-$ADMIN_PASS = $_ENV['ADMIN_PASS'];
+$ADMIN_PASS = $_ENV['ADMIN_PASS']; // Should be a bcrypt hash
 
-// ── Session ───────────────────────────────────────────────────────────────────
-session_start();
+// ── HTML escape (alias, config.php already has e()) ───────────────────────────
 $error   = '';
 $baseUrl = strtok($_SERVER['REQUEST_URI'], '?');
 
-// ── DB connection (created once, reused) ──────────────────────────────────────
-$GLOBALS['_db']      = null;
-$GLOBALS['_db_host'] = $db_host;
-$GLOBALS['_db_user'] = $db_user;
-$GLOBALS['_db_pass'] = $db_pass;
-$GLOBALS['_db_name'] = $db_name;
-
-function db() {
-    if ($GLOBALS['_db'] === null) {
-        $c = new mysqli($GLOBALS['_db_host'], $GLOBALS['_db_user'], $GLOBALS['_db_pass'], $GLOBALS['_db_name']);
-        if ($c->connect_error) {
-            die('<p style="color:red;padding:2rem;font-family:sans-serif">DB Error: ' . htmlspecialchars($c->connect_error) . '</p>');
-        }
-        $c->set_charset('utf8mb4');
-        $GLOBALS['_db'] = $c;
-    }
-    return $GLOBALS['_db'];
-}
-
-// ── HTML escape ───────────────────────────────────────────────────────────────
-function e($s) {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-}
-
 // ── Login ─────────────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    $u = trim(isset($_POST['username']) ? $_POST['username'] : '');
-    $p = isset($_POST['password']) ? $_POST['password'] : '';
-    if ($u === $ADMIN_USER && $p === $ADMIN_PASS) {
-        session_regenerate_id(true);
-        $_SESSION['admin_logged_in'] = true;
-        header('Location: ' . $baseUrl . '?tab=messages');
-        exit;
+    if (!verifyCsrf()) {
+        $error = 'Invalid request. Please try again.';
+    } else {
+        $u = trim(isset($_POST['username']) ? $_POST['username'] : '');
+        $p = isset($_POST['password']) ? $_POST['password'] : '';
+        // Support both bcrypt hash and plain-text (for migration)
+        $passOk = (strpos($ADMIN_PASS, '$2y$') === 0 || strpos($ADMIN_PASS, '$2a$') === 0)
+                ? password_verify($p, $ADMIN_PASS)
+                : hash_equals($ADMIN_PASS, $p);
+        if (hash_equals($ADMIN_USER, $u) && $passOk) {
+            session_regenerate_id(true);
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['last_activity']   = time();
+            header('Location: ' . $baseUrl . '?tab=messages');
+            exit;
+        }
+        $error = 'Invalid username or password.';
     }
-    $error = 'Invalid username or password.';
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
@@ -82,18 +47,21 @@ $tab      = isset($_GET['tab']) ? $_GET['tab'] : 'messages';
 // ══════════════════════════════════════════════════════════════════════════════
 $settingsSaved = false;
 if ($loggedIn && $tab === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
-    $badge_text    = trim(isset($_POST['badge_text'])    ? $_POST['badge_text']    : '');
-    $badge_visible = isset($_POST['badge_visible'])      ? '1' : '0';
-    $tilt_enabled  = isset($_POST['tilt_enabled'])       ? '1' : '0';
+    if (!verifyCsrf()) { $error = 'Invalid request token.'; }
+    else {
+        $badge_text    = trim(isset($_POST['badge_text'])    ? $_POST['badge_text']    : '');
+        $badge_visible = isset($_POST['badge_visible'])      ? '1' : '0';
+        $tilt_enabled  = isset($_POST['tilt_enabled'])       ? '1' : '0';
 
-    $keys = array('badge_text' => $badge_text, 'badge_visible' => $badge_visible, 'tilt_enabled' => $tilt_enabled);
-    foreach ($keys as $k => $v) {
-        $stmt = db()->prepare('INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
-        $stmt->bind_param('ss', $k, $v);
-        $stmt->execute();
-        $stmt->close();
+        $keys = array('badge_text' => $badge_text, 'badge_visible' => $badge_visible, 'tilt_enabled' => $tilt_enabled);
+        foreach ($keys as $k => $v) {
+            $stmt = db()->prepare('INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+            $stmt->bind_param('ss', $k, $v);
+            $stmt->execute();
+            $stmt->close();
+        }
+        $settingsSaved = true;
     }
-    $settingsSaved = true;
 }
 
 // Load current settings for the settings tab
@@ -110,14 +78,16 @@ $editSkill = null;
 if ($loggedIn && $tab === 'skills') {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_skill'])) {
-        $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
-        $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
-        $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
-        if ($title !== '' && $desc !== '') {
-            $stmt = db()->prepare('INSERT INTO skills (icon, title, description) VALUES (?, ?, ?)');
-            $stmt->bind_param('sss', $icon, $title, $desc);
-            $stmt->execute();
-            $stmt->close();
+        if (verifyCsrf()) {
+            $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
+            $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
+            $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
+            if ($title !== '' && $desc !== '') {
+                $stmt = db()->prepare('INSERT INTO skills (icon, title, description) VALUES (?, ?, ?)');
+                $stmt->bind_param('sss', $icon, $title, $desc);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
         header('Location: ' . $baseUrl . '?tab=skills'); exit;
     }
@@ -132,14 +102,16 @@ if ($loggedIn && $tab === 'skills') {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_skill'])) {
-        $id    = (int)$_POST['skill_id'];
-        $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
-        $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
-        $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
-        $stmt  = db()->prepare('UPDATE skills SET icon=?, title=?, description=? WHERE id=?');
-        $stmt->bind_param('sssi', $icon, $title, $desc, $id);
-        $stmt->execute();
-        $stmt->close();
+        if (verifyCsrf()) {
+            $id    = (int)$_POST['skill_id'];
+            $icon  = trim(isset($_POST['icon'])  ? $_POST['icon']  : '');
+            $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
+            $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
+            $stmt  = db()->prepare('UPDATE skills SET icon=?, title=?, description=? WHERE id=?');
+            $stmt->bind_param('sssi', $icon, $title, $desc, $id);
+            $stmt->execute();
+            $stmt->close();
+        }
         header('Location: ' . $baseUrl . '?tab=skills'); exit;
     }
 
@@ -160,16 +132,20 @@ $editProject = null;
 if ($loggedIn && $tab === 'projects') {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_project'])) {
-        $icon   = trim(isset($_POST['icon'])   ? $_POST['icon']   : '');
-        $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
-        $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
-        $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
-        $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
-        if ($title !== '' && $desc !== '') {
-            $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
-            $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
-            $stmt->execute();
-            $stmt->close();
+        if (verifyCsrf()) {
+            $icon   = trim(isset($_POST['icon'])   ? $_POST['icon']   : '');
+            $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
+            $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
+            $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
+            $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
+            if (!isValidUrl($url)) $url = '';
+            if (!isValidUrl($github)) $github = '';
+            if ($title !== '' && $desc !== '') {
+                $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
+                $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
         header('Location: ' . $baseUrl . '?tab=projects'); exit;
     }
@@ -184,16 +160,20 @@ if ($loggedIn && $tab === 'projects') {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_project'])) {
-        $id     = (int)$_POST['project_id'];
-        $icon   = trim(isset($_POST['icon'])   ? $_POST['icon']   : '');
-        $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
-        $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
-        $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
-        $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
-        $stmt   = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
-        $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $id);
-        $stmt->execute();
-        $stmt->close();
+        if (verifyCsrf()) {
+            $id     = (int)$_POST['project_id'];
+            $icon   = trim(isset($_POST['icon'])   ? $_POST['icon']   : '');
+            $title  = trim(isset($_POST['title'])  ? $_POST['title']  : '');
+            $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
+            $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
+            $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
+            if (!isValidUrl($url)) $url = '';
+            if (!isValidUrl($github)) $github = '';
+            $stmt   = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
+            $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $id);
+            $stmt->execute();
+            $stmt->close();
+        }
         header('Location: ' . $baseUrl . '?tab=projects'); exit;
     }
 
@@ -214,14 +194,16 @@ $editEmbed = null;
 if ($loggedIn && $tab === 'embeds') {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_embed'])) {
-        $label      = trim(isset($_POST['label'])      ? $_POST['label']      : '');
-        $embed_code = trim(isset($_POST['embed_code']) ? $_POST['embed_code'] : '');
-        $sort_order = (int)(isset($_POST['sort_order']) ? $_POST['sort_order'] : 0);
-        if ($embed_code !== '') {
-            $stmt = db()->prepare('INSERT INTO social_embeds (label, embed_code, sort_order) VALUES (?, ?, ?)');
-            $stmt->bind_param('ssi', $label, $embed_code, $sort_order);
-            $stmt->execute();
-            $stmt->close();
+        if (verifyCsrf()) {
+            $label      = trim(isset($_POST['label'])      ? $_POST['label']      : '');
+            $embed_code = trim(isset($_POST['embed_code']) ? $_POST['embed_code'] : '');
+            $sort_order = (int)(isset($_POST['sort_order']) ? $_POST['sort_order'] : 0);
+            if ($embed_code !== '') {
+                $stmt = db()->prepare('INSERT INTO social_embeds (label, embed_code, sort_order) VALUES (?, ?, ?)');
+                $stmt->bind_param('ssi', $label, $embed_code, $sort_order);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
         header('Location: ' . $baseUrl . '?tab=embeds'); exit;
     }
@@ -236,14 +218,16 @@ if ($loggedIn && $tab === 'embeds') {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_embed'])) {
-        $id         = (int)$_POST['embed_id'];
-        $label      = trim(isset($_POST['label'])      ? $_POST['label']      : '');
-        $embed_code = trim(isset($_POST['embed_code']) ? $_POST['embed_code'] : '');
-        $sort_order = (int)(isset($_POST['sort_order']) ? $_POST['sort_order'] : 0);
-        $stmt = db()->prepare('UPDATE social_embeds SET label=?, embed_code=?, sort_order=? WHERE id=?');
-        $stmt->bind_param('ssii', $label, $embed_code, $sort_order, $id);
-        $stmt->execute();
-        $stmt->close();
+        if (verifyCsrf()) {
+            $id         = (int)$_POST['embed_id'];
+            $label      = trim(isset($_POST['label'])      ? $_POST['label']      : '');
+            $embed_code = trim(isset($_POST['embed_code']) ? $_POST['embed_code'] : '');
+            $sort_order = (int)(isset($_POST['sort_order']) ? $_POST['sort_order'] : 0);
+            $stmt = db()->prepare('UPDATE social_embeds SET label=?, embed_code=?, sort_order=? WHERE id=?');
+            $stmt->bind_param('ssii', $label, $embed_code, $sort_order, $id);
+            $stmt->execute();
+            $stmt->close();
+        }
         header('Location: ' . $baseUrl . '?tab=embeds'); exit;
     }
 
@@ -449,6 +433,7 @@ function pageUrl($page, $search, $base) {
       <div class="error-msg"><?php echo e($error); ?></div>
     <?php endif; ?>
     <form method="POST" autocomplete="on">
+      <?php echo csrfField(); ?>
       <div class="form-group">
         <label for="uname">Username</label>
         <input type="text" id="uname" name="username" autocomplete="username" required autofocus />
@@ -570,6 +555,7 @@ function pageUrl($page, $search, $base) {
   <div class="panel">
     <h3>✏️ Edit Skill — <?php echo e($editSkill['title']); ?></h3>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <input type="hidden" name="skill_id" value="<?php echo (int)$editSkill['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
@@ -595,6 +581,7 @@ function pageUrl($page, $search, $base) {
   <div class="panel">
     <h3>➕ Add New Skill</h3>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
           <label>Icon / Emoji</label>
@@ -649,6 +636,7 @@ function pageUrl($page, $search, $base) {
   <div class="panel">
     <h3>✏️ Edit Project — <?php echo e($editProject['title']); ?></h3>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <input type="hidden" name="project_id" value="<?php echo (int)$editProject['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
@@ -682,6 +670,7 @@ function pageUrl($page, $search, $base) {
   <div class="panel">
     <h3>➕ Add New Project</h3>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
           <label>Icon / Emoji</label>
@@ -754,6 +743,7 @@ function pageUrl($page, $search, $base) {
   <div class="panel">
     <h3>✏️ Edit Embed</h3>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <input type="hidden" name="embed_id" value="<?php echo (int)$editEmbed['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
@@ -783,6 +773,7 @@ function pageUrl($page, $search, $base) {
       On LinkedIn: open a post → click <strong>···</strong> → <strong>Embed this post</strong> → copy the iframe code.
     </p>
     <form method="POST">
+      <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
           <label>Label <span style="font-weight:400;text-transform:none;">(optional)</span></label>
@@ -849,6 +840,7 @@ function pageUrl($page, $search, $base) {
     <h3>🖼️ Hero Image Settings</h3>
     <p class="panel-hint">Control the 3D tilt effect and the status badge shown on your profile photo.</p>
     <form method="POST">
+      <?php echo csrfField(); ?>
 
       <!-- 3D Tilt toggle -->
       <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:1rem;">

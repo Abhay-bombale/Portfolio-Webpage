@@ -2,11 +2,14 @@
 
 document.addEventListener('DOMContentLoaded', function() {
 
+// ─── Reduced motion check ────────────────────────────────────────────────────
+var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 // ─── Hero card 3D tilt (mouse-tracking) ──────────────────────────────────────
 var heroWrap = document.getElementById('heroCardWrap')
 var heroCard = document.getElementById('heroCard')
 
-if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1') {
+if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1' && !prefersReducedMotion) {
   var tiltMax    = 14
   var tiltActive = false
 
@@ -188,6 +191,7 @@ if (contactForm) {
       if (data.success) {
         showStatus('Your message has been sent successfully!', true)
         contactForm.reset()
+        updateCharCount()
         submitBtn.textContent           = 'Message Sent!'
         submitBtn.style.backgroundColor = '#10b981'
         setTimeout(function() {
@@ -219,6 +223,83 @@ if (contactForm) {
       }, 3000)
     }
   })
+}
+
+// ─── Character counter for message textarea ──────────────────────────────────
+var messageField = document.getElementById('message')
+var charCount    = document.getElementById('charCount')
+
+function updateCharCount() {
+  if (!messageField || !charCount) return
+  var len = messageField.value.length
+  charCount.textContent = len + ' / 2000'
+  charCount.style.color = len > 1800 ? '#ef4444' : ''
+}
+
+if (messageField && charCount) {
+  messageField.addEventListener('input', updateCharCount)
+  updateCharCount()
+}
+
+// ─── Dark mode toggle ────────────────────────────────────────────────────────
+var themeToggle = document.getElementById('themeToggle')
+var root        = document.documentElement
+
+function getPreferredTheme() {
+  var saved = localStorage.getItem('theme')
+  if (saved) return saved
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function applyTheme(theme) {
+  root.setAttribute('data-theme', theme)
+  localStorage.setItem('theme', theme)
+}
+
+applyTheme(getPreferredTheme())
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', function() {
+    var current = root.getAttribute('data-theme') || 'light'
+    applyTheme(current === 'dark' ? 'light' : 'dark')
+  })
+}
+
+// ─── Back to Top button ──────────────────────────────────────────────────────
+var backToTop = document.getElementById('backToTop')
+
+if (backToTop) {
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 400) {
+      backToTop.classList.add('visible')
+    } else {
+      backToTop.classList.remove('visible')
+    }
+  })
+
+  backToTop.addEventListener('click', function() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  })
+}
+
+// ─── Scroll reveal animations ────────────────────────────────────────────────
+if (!prefersReducedMotion) {
+  var revealElements = document.querySelectorAll('.skill-card, .project-card, .about-text')
+  if (revealElements.length && 'IntersectionObserver' in window) {
+    var revealObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed')
+          revealObserver.unobserve(entry.target)
+        }
+      })
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' })
+
+    revealElements.forEach(function(el) {
+      el.classList.add('reveal-on-scroll')
+      revealObserver.observe(el)
+    })
+  }
 }
 
 }) // end DOMContentLoaded
