@@ -1,157 +1,206 @@
-# 🛡️ Abhay Bombale — Personal Portfolio
+# 🌐 Abhay Bombale — Personal Portfolio
 
-A fully dynamic, database-driven portfolio website built from scratch with PHP, MySQL, and vanilla JavaScript. Features a full admin panel, dark mode, and security-hardened backend.
-
-![PHP](https://img.shields.io/badge/PHP-7.4+-777BB4?logo=php&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green)
+A fully dynamic, database-driven personal portfolio website built with **PHP**, **MySQL**, and **vanilla JavaScript** — no frameworks, no build tools, just clean code that runs on any standard PHP host.
 
 ---
 
 ## ✨ Features
 
-**Frontend**
-- Responsive design with mobile hamburger navigation
-- Dark mode toggle with `localStorage` persistence and `prefers-color-scheme` detection
-- 3D tilt hero image with animated status badge
-- Back-to-top button with smooth scroll
-- Scroll reveal animations via `IntersectionObserver`
-- Character counter on the contact form textarea
-- Lazy-loaded images for faster page loads
-
-**Admin Panel** (`/admin.php`)
-- Session-based authentication with bcrypt password hashing
-- CRUD management for Skills, Projects, and Social Embeds
-- Editable site settings (badge text, badge visibility, tilt toggle)
-- View and delete contact form submissions
-
-**Backend & Security**
-- Shared `config.php` bootstrap (DRY — no duplicated DB/env code)
-- CSRF token protection on every form
-- Prepared statements for all database queries (SQL injection safe)
-- HTML output escaping via `htmlspecialchars` helper
-- Honeypot field and session-based rate limiting on the contact form
-- Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, etc.)
-- `.htaccess` rules blocking direct access to `.env` and `config.php`
-- Session timeout (30 min inactivity) and secure cookie flags
-- URL validation on project links in admin
-
-**SEO & Accessibility**
-- Open Graph and Twitter Card meta tags
-- JSON-LD `Person` structured data
-- Canonical URL
-- Skip-to-content link and `<main>` landmark
-- `:focus-visible` outlines on all interactive elements
-- `prefers-reduced-motion` media query (disables animations)
+- **Dynamic Content** — Skills, projects, and certifications are all managed through an admin panel and stored in MySQL; no hardcoded HTML needed.
+- **Admin Panel** (`admin.php`) — A secure, session-based control panel to manage:
+  - Contact form messages (view & delete)
+  - Skills, projects, and certifications (add, edit, delete)
+  - Site-wide settings (badge text, email notifications, analytics)
+- **Contact Form** — AJAX-powered form with spam protection (honeypot), rate limiting, server-side validation, and email notifications.
+- **Certifications Page** — A dedicated `/certifications.php` page with an image gallery grid for displaying credential badges.
+- **Dark Mode** — Toggle between light and dark themes, with preference saved to `localStorage`.
+- **3D Hero Card Tilt** — Mouse-tracking tilt effect on the hero section (can be toggled from the admin panel).
+- **Scroll Animations** — Intersection Observer-based reveal animations for cards and sections.
+- **GoatCounter Analytics** — Privacy-friendly analytics integration (configurable from admin settings).
+- **SEO Ready** — OpenGraph tags, Twitter Card meta, JSON-LD structured data, and canonical URLs.
+- **Accessibility** — Skip-to-content link, ARIA labels, keyboard-navigable mobile menu.
+- **Security** — CSRF tokens on all forms, prepared statements (no SQL injection), `X-Frame-Options`, `X-Content-Type-Options`, session timeouts, and bcrypt-compatible admin password hashing.
 
 ---
 
-## 🔧 Tech Stack
-
-| Layer      | Technology                          |
-|------------|-------------------------------------|
-| Frontend   | HTML5, CSS3 (custom properties), vanilla JS |
-| Backend    | PHP 7.4+                            |
-| Database   | MySQL / MariaDB                     |
-| Server     | Apache (XAMPP locally, InfinityFree live) |
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-- [XAMPP](https://www.apachefriends.org/) (or any Apache + PHP + MySQL stack)
-- PHP 7.4 or higher
-
-### Installation
-
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/your-username/Portfolio-Webpage.git
-   cd Portfolio-Webpage
-   ```
-
-2. **Create your environment file**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` with your database credentials and admin login. To generate a bcrypt hash for your password:
-   ```bash
-   php -r "echo password_hash('your-password', PASSWORD_DEFAULT);"
-   ```
-
-3. **Set up the database**
-   - Create a database (e.g. `portfolio`)
-   - Import the schema:
-     ```bash
-     mysql -u root -p portfolio < setup.sql
-     ```
-
-4. **Start the server**
-   - Launch Apache and MySQL from the XAMPP control panel
-   - Visit `http://localhost/Portfolio-Webpage`
-
-5. **Log in to admin**
-   - Navigate to `http://localhost/Portfolio-Webpage/admin.php`
-   - Use the credentials from your `.env` file
-
----
-
-## 📁 Project Structure
+## 🗂️ Project Structure
 
 ```
-Portfolio-Webpage/
-├── .env.example      # Environment variable template
-├── .gitignore         # Git ignore rules
-├── .htaccess          # Apache security & compression rules
-├── config.php         # Shared bootstrap (DB, CSRF, sessions, helpers)
-├── index.php          # Public portfolio page
-├── admin.php          # Admin panel (auth + CRUD)
-├── contact.php        # Contact form AJAX handler
-├── main.js            # Client-side interactivity
-├── style.css          # All styles (incl. dark mode & a11y)
-├── setup.sql          # Database schema + indexes
-├── package.json       # Project metadata
-└── README.md
+portfolio/
+├── index.php           # Main portfolio page (Home, About, Skills, Projects, Contact)
+├── certifications.php  # Standalone certifications gallery page
+├── admin.php           # Admin panel (login-protected)
+├── contact.php         # Contact form handler (JSON API endpoint)
+├── config.php          # Shared bootstrap: DB, env loading, helpers, security
+├── setup.sql           # Database schema + seed data (safe to re-run)
+├── main.js             # All client-side JS (vanilla, no dependencies)
+├── style.css           # All styles (CSS custom properties, responsive)
+├── 404.php             # Custom 404 error page
+├── .env                # 🔒 Environment variables (not committed to Git)
+├── favicon.png         # Site favicon
+├── Profile.png         # Hero profile photo
+└── uploads/
+    ├── resume.pdf      # Optional: downloadable CV
+    └── certs/          # Uploaded certification images
 ```
 
 ---
 
 ## 🗄️ Database Schema
 
-| Table          | Purpose                              |
-|----------------|--------------------------------------|
-| `contacts`     | Contact form submissions             |
-| `skills`       | Skills displayed on the portfolio    |
-| `projects`     | Projects displayed on the portfolio  |
-| `social_embeds`| Embedded social media widgets        |
-| `site_settings`| Key-value store for site config      |
+The site uses **6 MySQL tables**, all created by `setup.sql`:
+
+| Table | Purpose |
+|---|---|
+| `contacts` | Stores contact form submissions |
+| `skills` | Skills shown in the Skills section |
+| `projects` | Projects shown in the Projects section |
+| `certifications` | Certification cards with image uploads |
+| `social_embeds` | Embeddable social media posts/widgets |
+| `site_settings` | Key-value store for admin-configurable settings |
 
 ---
 
-## 📝 Environment Variables
+## 🚀 Setup & Installation
 
-See [.env.example](.env.example) for the full list. Key variables:
+### Prerequisites
+- PHP 7.4+ (8.x recommended)
+- MySQL / MariaDB
+- A web server (Apache/Nginx) or XAMPP for local development
 
-| Variable        | Description                    |
-|-----------------|--------------------------------|
-| `LOCAL_DB_HOST`  | Local MySQL host (e.g. `localhost`) |
-| `LOCAL_DB_NAME`  | Local database name            |
-| `LOCAL_DB_USER`  | Local database username        |
-| `LOCAL_DB_PASS`  | Local database password        |
-| `LIVE_DB_*`      | Production database credentials |
-| `ADMIN_USER`     | Admin panel username           |
-| `ADMIN_PASS`     | Admin panel password (bcrypt hash) |
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Abhay-bombale/portfolio.git
+cd portfolio
+```
+
+### 2. Create the `.env` File
+
+Create a `.env` file in the project root (never commit this):
+
+```env
+# Local (XAMPP / dev)
+LOCAL_DB_HOST=localhost
+LOCAL_DB_USER=root
+LOCAL_DB_PASS=
+LOCAL_DB_NAME=portfolio
+
+# Live (production host)
+LIVE_DB_HOST=your_live_host
+LIVE_DB_USER=your_live_db_user
+LIVE_DB_PASS=your_live_db_password
+LIVE_DB_NAME=your_live_db_name
+
+# Admin credentials
+ADMIN_USER=admin
+ADMIN_PASS=your_password_or_bcrypt_hash
+```
+
+> **Tip:** For `ADMIN_PASS`, you can use a plain password during setup. For production, replace it with a bcrypt hash: `password_hash('yourpassword', PASSWORD_BCRYPT)`.
+
+### 3. Run the SQL Setup
+
+Import `setup.sql` into your MySQL database:
+
+```bash
+mysql -u root -p portfolio < setup.sql
+```
+
+Or paste it into phpMyAdmin's SQL tab. The script is safe to re-run — it uses `IF NOT EXISTS` throughout.
+
+### 4. Create Upload Directories
+
+```bash
+mkdir -p uploads/certs
+chmod 755 uploads/certs
+```
+
+### 5. Add a `.htaccess` (Apache)
+
+To route 404s through `404.php` and protect the `.env` file:
+
+```apache
+ErrorDocument 404 /404.php
+
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+```
+
+### 6. Visit Your Site
+
+Open `http://localhost/portfolio/` in your browser.  
+Access the admin panel at `http://localhost/portfolio/admin.php`.
 
 ---
 
-## 🤝 Contributing
+## ⚙️ Admin Panel Guide
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Log in at `/admin.php` with your credentials set in `.env`.
+
+| Tab | What you can do |
+|---|---|
+| **Messages** | Read and delete contact form submissions |
+| **Skills** | Add/edit/delete skills with icons and descriptions |
+| **Projects** | Add/edit/delete projects with links to live demo & GitHub |
+| **Certifications** | Upload certificate images with title, issuer, and date |
+| **Settings** | Toggle the "Open to Work" badge, hero tilt effect, notification email, and GoatCounter analytics ID |
+
+---
+
+## 🔒 Security Notes
+
+- All database queries use **prepared statements** (MySQLi) — protected against SQL injection.
+- All forms are protected by **CSRF tokens**.
+- Admin sessions have a **30-minute inactivity timeout** and are regenerated on login.
+- The `.env` file must be blocked from public access via `.htaccess` (see setup above).
+- Admin passwords support **bcrypt hashing** (`$2y$` prefix is auto-detected).
+
+---
+
+## 🌍 Deploying to a Live Host (e.g., InfinityFree, cPanel)
+
+1. Upload all files via FTP/File Manager.
+2. Create a MySQL database and user in your hosting control panel.
+3. Update the `LIVE_DB_*` values in `.env`.
+4. Import `setup.sql` through phpMyAdmin.
+5. Make sure `uploads/certs/` is writable by the web server.
+
+The `config.php` auto-detects whether it's running locally or on a live server based on `SERVER_NAME`, and uses the correct DB credentials automatically.
+
+---
+
+## 🛠️ Built With
+
+- **PHP** — Server-side logic and templating
+- **MySQL / MariaDB** — Database
+- **Vanilla JavaScript** — No frameworks; plain ES6+
+- **CSS Custom Properties** — Theming (light/dark mode)
+- **Google Fonts** — Inter & Poppins
+- **GoatCounter** — Privacy-friendly analytics (optional)
+
+---
+
+## 🤖 Credits & Acknowledgements
+
+This project was designed and built with assistance from:
+
+- **[Claude.ai](https://claude.ai)** by Anthropic — AI pair programming, code review, security hardening, and architecture guidance.
+- **[Bolt.new](https://bolt.new)** — AI-powered prototyping and rapid scaffolding of the initial UI and component structure.
+
+---
+
+## 👤 Author
+
+**Abhay Bombale**  
+B.Tech Computer Science Engineering Student | Aspiring Cybersecurity Analyst
+
+- 🌐 Portfolio: [your website]
+- 💼 LinkedIn: [linkedin.com/in/abhaybombale](https://www.linkedin.com/in/abhaybombale/)
+- 🐙 GitHub: [github.com/Abhay-bombale](https://github.com/Abhay-bombale)
+- 🐦 X (Twitter): [@AbhayBombale](https://x.com/AbhayBombale)
 
 ---
 
