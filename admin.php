@@ -43,9 +43,10 @@ $loggedIn = !empty($_SESSION['admin_logged_in']);
 $tab      = isset($_GET['tab']) ? $_GET['tab'] : 'messages';
 
 function tableHasColumn($table, $column) {
-  $stmt = db()->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
+  $sql = 'SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1';
+  $stmt = db()->prepare($sql);
   if (!$stmt) { return false; }
-  $stmt->bind_param('s', $column);
+  $stmt->bind_param('ss', $table, $column);
   $stmt->execute();
   $result = $stmt->get_result();
   $exists = $result && $result->num_rows > 0;
@@ -54,6 +55,32 @@ function tableHasColumn($table, $column) {
 }
 
 $projectsHasSortOrder = tableHasColumn('projects', 'sort_order');
+
+function renderIconEmbed($raw, $altText, $imgSizePx = 36) {
+  $raw = trim((string)$raw);
+  if ($raw === '') {
+    return '📁';
+  }
+
+  $isImageUrl = preg_match('/^(https?:\/\/|\.{0,2}\/|uploads\/).+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i', $raw);
+  if ($isImageUrl) {
+    $safeSrc = e($raw);
+    $safeAlt = e($altText . ' logo');
+    $size = (int)$imgSizePx;
+    return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
+  }
+
+  $hasHtml = preg_match('/<[^>]+>/', $raw) === 1;
+  if ($hasHtml) {
+    $allowed = '<i><span><img><svg><path><g><use><circle><rect><line><polyline><polygon><ellipse><iframe>';
+    $clean = strip_tags($raw, $allowed);
+    $clean = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
+    $clean = preg_replace('/javascript\s*:/i', '', $clean);
+    return $clean;
+  }
+
+  return e($raw);
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS ACTIONS
@@ -737,8 +764,8 @@ function pageUrl($page, $search, $base) {
       <input type="hidden" name="skill_id" value="<?php echo (int)$editSkill['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Emoji</label>
-          <input type="text" name="icon" value="<?php echo e($editSkill['icon']); ?>" placeholder="e.g. 🔐" maxlength="10" />
+          <label>Icon / Embed Code / Emoji</label>
+          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🔐 or &lt;i class='devicon-python-plain'&gt;&lt;/i&gt;"><?php echo e($editSkill['icon']); ?></textarea>
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -766,8 +793,8 @@ function pageUrl($page, $search, $base) {
       <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Emoji</label>
-          <input type="text" name="icon" placeholder="e.g. 🔐" maxlength="10" />
+          <label>Icon / Embed Code / Emoji</label>
+          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🔐 or &lt;i class='devicon-python-plain'&gt;&lt;/i&gt;"></textarea>
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -800,7 +827,7 @@ function pageUrl($page, $search, $base) {
       <?php foreach ($skills as $s): ?>
         <div class="item-card">
           <div class="item-card-header">
-            <div class="item-card-icon"><?php echo e($s['icon']); ?></div>
+            <div class="item-card-icon"><?php echo renderIconEmbed($s['icon'], $s['title'], 34); ?></div>
             <div class="item-card-title"><?php echo e($s['title']); ?></div>
           </div>
           <div class="item-card-desc"><?php echo e($s['description']); ?></div>
@@ -941,8 +968,8 @@ function pageUrl($page, $search, $base) {
       <input type="hidden" name="project_id" value="<?php echo (int)$editProject['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Logo URL</label>
-          <input type="text" name="icon" value="<?php echo e($editProject['icon']); ?>" placeholder="e.g. https://example.com/logo.svg or 🛡️" maxlength="255" />
+          <label>Icon / Embed Code / Emoji</label>
+          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🛡️ or &lt;img src='https://example.com/logo.svg' /&gt;"><?php echo e($editProject['icon']); ?></textarea>
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -980,8 +1007,8 @@ function pageUrl($page, $search, $base) {
       <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Logo URL</label>
-          <input type="text" name="icon" placeholder="e.g. https://example.com/logo.svg or 🛡️" maxlength="255" />
+          <label>Icon / Embed Code / Emoji</label>
+          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🛡️ or &lt;img src='https://example.com/logo.svg' /&gt;"></textarea>
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -1022,20 +1049,10 @@ function pageUrl($page, $search, $base) {
   <?php else: ?>
     <div class="cards-grid">
       <?php foreach ($projects as $p): ?>
-        <?php
-          $projectIcon = trim((string)$p['icon']);
-          $projectHasLogo = ($projectIcon !== '') && preg_match('/(https?:\/\/|^\.{0,2}\/|^uploads\/|\.(png|jpe?g|gif|webp|svg)(\?.*)?$)/i', $projectIcon);
-        ?>
         <div class="item-card">
           <div class="item-card-header">
             <div class="item-card-icon">
-              <?php if ($projectHasLogo): ?>
-                <img src="<?php echo e($projectIcon); ?>" alt="<?php echo e($p['title']); ?> logo" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" />
-              <?php elseif ($projectIcon !== ''): ?>
-                <?php echo e($projectIcon); ?>
-              <?php else: ?>
-                📁
-              <?php endif; ?>
+              <?php echo renderIconEmbed($p['icon'], $p['title'], 36); ?>
             </div>
             <div class="item-card-title"><?php echo e($p['title']); ?></div>
           </div>

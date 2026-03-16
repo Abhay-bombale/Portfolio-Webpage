@@ -43,6 +43,33 @@ if (!$_conn->connect_error) {
 function eh($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
+
+function renderIconEmbed($raw, $altText, $imgSizePx = 42) {
+  $raw = trim((string)$raw);
+  if ($raw === '') {
+    return '<span style="font-size:.9rem;font-weight:600;opacity:.85;">Project</span>';
+  }
+
+  $isImageUrl = preg_match('/^(https?:\/\/|\.{0,2}\/|uploads\/).+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i', $raw);
+  if ($isImageUrl) {
+    $safeSrc = eh($raw);
+    $safeAlt = eh($altText . ' logo');
+    $size = (int)$imgSizePx;
+    return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
+  }
+
+  $hasHtml = preg_match('/<[^>]+>/', $raw) === 1;
+  if ($hasHtml) {
+    // Allow admin-provided embed snippets for icon/logo display while stripping risky attributes.
+    $allowed = '<i><span><img><svg><path><g><use><circle><rect><line><polyline><polygon><ellipse><iframe>';
+    $clean = strip_tags($raw, $allowed);
+    $clean = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
+    $clean = preg_replace('/javascript\s*:/i', '', $clean);
+    return $clean;
+  }
+
+  return eh($raw);
+}
 $_cvRelPath = null;
 if (file_exists(__DIR__ . '/uploads/Abhay_Resume.pdf')) {
   $_cvRelPath = 'uploads/Abhay_Resume.pdf';
@@ -300,7 +327,7 @@ $_cvExists = ($_cvRelPath !== null);
         <?php else: ?>
           <?php foreach ($_skills as $sk): ?>
             <div class="skill-card">
-              <div class="skill-icon"><?= eh($sk['icon']) ?></div>
+              <div class="skill-icon"><?= renderIconEmbed($sk['icon'], $sk['title'], 40) ?></div>
               <h3><?= eh($sk['title']) ?></h3>
               <p><?= eh($sk['description']) ?></p>
             </div>
@@ -319,20 +346,10 @@ $_cvExists = ($_cvRelPath !== null);
           <p style="color:#6b7280;text-align:center;grid-column:1/-1;">No projects listed yet.</p>
         <?php else: ?>
           <?php foreach ($_projects as $proj): ?>
-            <?php
-              $projectIcon = trim((string)$proj['icon']);
-              $projectHasLogo = ($projectIcon !== '') && preg_match('/(https?:\/\/|^\.{0,2}\/|^uploads\/|\.(png|jpe?g|gif|webp|svg)(\?.*)?$)/i', $projectIcon);
-            ?>
             <div class="project-card">
               <div class="project-image" role="img" aria-label="<?= eh($proj['title']) ?> preview"
                    style="background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:2rem;">
-                <?php if ($projectHasLogo): ?>
-                  <img src="<?= eh($projectIcon) ?>" alt="<?= eh($proj['title']) ?> logo" style="max-width:72%;max-height:72%;object-fit:contain;" loading="lazy" />
-                <?php elseif ($projectIcon !== ''): ?>
-                  <?= eh($projectIcon) ?>
-                <?php else: ?>
-                  <span style="font-size:.9rem;font-weight:600;opacity:.85;">Project</span>
-                <?php endif; ?>
+                <?= renderIconEmbed($proj['icon'], $proj['title'], 92) ?>
               </div>
               <div class="project-content">
                 <h3><?= eh($proj['title']) ?></h3>
