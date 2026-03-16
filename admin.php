@@ -42,6 +42,19 @@ if (isset($_GET['logout'])) {
 $loggedIn = !empty($_SESSION['admin_logged_in']);
 $tab      = isset($_GET['tab']) ? $_GET['tab'] : 'messages';
 
+function tableHasColumn($table, $column) {
+  $stmt = db()->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
+  if (!$stmt) { return false; }
+  $stmt->bind_param('s', $column);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $exists = $result && $result->num_rows > 0;
+  $stmt->close();
+  return $exists;
+}
+
+$projectsHasSortOrder = tableHasColumn('projects', 'sort_order');
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SETTINGS ACTIONS
 // ══════════════════════════════════════════════════════════════════════════════
@@ -148,11 +161,17 @@ if ($loggedIn && $tab === 'projects') {
             $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
             $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
             $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
+      $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
             if (!isValidUrl($url)) $url = '';
             if (!isValidUrl($github)) $github = '';
             if ($title !== '' && $desc !== '') {
-                $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
-                $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
+        if ($projectsHasSortOrder) {
+          $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+          $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $sort);
+        } else {
+          $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
+          $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
+        }
                 $stmt->execute();
                 $stmt->close();
             }
@@ -177,10 +196,16 @@ if ($loggedIn && $tab === 'projects') {
             $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
             $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
             $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
+            $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
             if (!isValidUrl($url)) $url = '';
             if (!isValidUrl($github)) $github = '';
-            $stmt   = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
-            $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $id);
+            if ($projectsHasSortOrder) {
+              $stmt = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=?, sort_order=? WHERE id=?');
+              $stmt->bind_param('sssssii', $icon, $title, $desc, $url, $github, $sort, $id);
+            } else {
+              $stmt = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
+              $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $id);
+            }
             $stmt->execute();
             $stmt->close();
         }
@@ -318,9 +343,12 @@ if ($loggedIn && $tab === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST' &&
             $mimeType = finfo_file($finfo, $tmpName);
             finfo_close($finfo);
             if ($mimeType === 'application/pdf' && $_FILES['cv_file']['size'] <= 5 * 1024 * 1024) {
-                $dest = __DIR__ . '/uploads/resume.pdf';
-                move_uploaded_file($tmpName, $dest);
+              $dest = __DIR__ . '/uploads/Abhay_Resume.pdf';
+              if (move_uploaded_file($tmpName, $dest)) {
+                $legacy = __DIR__ . '/uploads/resume.pdf';
+                if (file_exists($legacy)) { @unlink($legacy); }
                 $cvUploaded = true;
+              }
             }
         }
     }
@@ -442,7 +470,8 @@ if ($loggedIn) {
         if ($r) { while ($row = $r->fetch_assoc()) { $skills[] = $row; } }
     }
     if ($tab === 'projects') {
-        $r = db()->query('SELECT * FROM projects ORDER BY id ASC');
+      $projectsOrder = $projectsHasSortOrder ? 'sort_order ASC, id ASC' : 'id ASC';
+      $r = db()->query("SELECT * FROM projects ORDER BY {$projectsOrder}");
         if ($r) { while ($row = $r->fetch_assoc()) { $projects[] = $row; } }
     }
     if ($tab === 'embeds') {
@@ -912,8 +941,8 @@ function pageUrl($page, $search, $base) {
       <input type="hidden" name="project_id" value="<?php echo (int)$editProject['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Emoji</label>
-          <input type="text" name="icon" value="<?php echo e($editProject['icon']); ?>" placeholder="e.g. 🛡️" maxlength="10" />
+          <label>Icon / Logo URL</label>
+          <input type="text" name="icon" value="<?php echo e($editProject['icon']); ?>" placeholder="e.g. https://example.com/logo.svg or 🛡️" maxlength="255" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -931,6 +960,12 @@ function pageUrl($page, $search, $base) {
           <label>GitHub URL</label>
           <input type="url" name="github" value="<?php echo e($editProject['github_url']); ?>" placeholder="https://github.com/…" />
         </div>
+        <?php if ($projectsHasSortOrder): ?>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="<?php echo isset($editProject['sort_order']) ? (int)$editProject['sort_order'] : 0; ?>" placeholder="0" />
+        </div>
+        <?php endif; ?>
       </div>
       <div class="panel-actions">
         <button type="submit" name="save_project" class="btn btn-success">Save Changes</button>
@@ -945,8 +980,8 @@ function pageUrl($page, $search, $base) {
       <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Emoji</label>
-          <input type="text" name="icon" placeholder="e.g. 🛡️" maxlength="10" />
+          <label>Icon / Logo URL</label>
+          <input type="text" name="icon" placeholder="e.g. https://example.com/logo.svg or 🛡️" maxlength="255" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -964,6 +999,12 @@ function pageUrl($page, $search, $base) {
           <label>GitHub URL</label>
           <input type="url" name="github" placeholder="https://github.com/…" />
         </div>
+        <?php if ($projectsHasSortOrder): ?>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="0" placeholder="0" />
+        </div>
+        <?php endif; ?>
       </div>
       <div class="panel-actions">
         <button type="submit" name="add_project" class="btn btn-primary">Add Project</button>
@@ -981,12 +1022,27 @@ function pageUrl($page, $search, $base) {
   <?php else: ?>
     <div class="cards-grid">
       <?php foreach ($projects as $p): ?>
+        <?php
+          $projectIcon = trim((string)$p['icon']);
+          $projectHasLogo = ($projectIcon !== '') && preg_match('/(https?:\/\/|^\.{0,2}\/|^uploads\/|\.(png|jpe?g|gif|webp|svg)(\?.*)?$)/i', $projectIcon);
+        ?>
         <div class="item-card">
           <div class="item-card-header">
-            <div class="item-card-icon"><?php echo e($p['icon']); ?></div>
+            <div class="item-card-icon">
+              <?php if ($projectHasLogo): ?>
+                <img src="<?php echo e($projectIcon); ?>" alt="<?php echo e($p['title']); ?> logo" style="width:36px;height:36px;object-fit:contain;display:block;" loading="lazy" />
+              <?php elseif ($projectIcon !== ''): ?>
+                <?php echo e($projectIcon); ?>
+              <?php else: ?>
+                📁
+              <?php endif; ?>
+            </div>
             <div class="item-card-title"><?php echo e($p['title']); ?></div>
           </div>
           <div class="item-card-desc"><?php echo e($p['description']); ?></div>
+          <?php if ($projectsHasSortOrder): ?>
+            <div style="font-size:.78rem;color:var(--muted);">Sort Order: <?php echo isset($p['sort_order']) ? (int)$p['sort_order'] : 0; ?></div>
+          <?php endif; ?>
           <?php if ($p['project_url'] || $p['github_url']): ?>
             <div class="item-card-links">
               <?php if ($p['project_url']): ?>
@@ -1191,13 +1247,18 @@ function pageUrl($page, $search, $base) {
   <div class="panel" style="max-width:560px;">
     <h3>📄 Resume / CV</h3>
     <p class="panel-hint">Upload your resume as a PDF (max 5 MB). A "Download CV" button will appear in the hero section.</p>
-    <?php $cvExists = file_exists(__DIR__ . '/uploads/resume.pdf'); ?>
+    <?php
+      $cvPrimary = __DIR__ . '/uploads/Abhay_Resume.pdf';
+      $cvLegacy = __DIR__ . '/uploads/resume.pdf';
+      $cvFilePath = file_exists($cvPrimary) ? $cvPrimary : (file_exists($cvLegacy) ? $cvLegacy : '');
+      $cvExists = ($cvFilePath !== '');
+    ?>
     <?php if ($cvExists): ?>
       <div style="display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:8px;margin-bottom:1rem;">
         <span style="font-size:1.3rem;">✅</span>
         <div>
-          <div style="font-weight:600;font-size:.9rem;">resume.pdf uploaded</div>
-          <div style="font-size:.78rem;color:var(--muted);">Size: <?php echo round(filesize(__DIR__ . '/uploads/resume.pdf') / 1024); ?> KB</div>
+          <div style="font-weight:600;font-size:.9rem;"><?php echo e(basename($cvFilePath)); ?> uploaded</div>
+          <div style="font-size:.78rem;color:var(--muted);">Size: <?php echo round(filesize($cvFilePath) / 1024); ?> KB</div>
         </div>
       </div>
     <?php else: ?>

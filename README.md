@@ -40,7 +40,7 @@ portfolio/
 ├── favicon.png         # Site favicon
 ├── Profile.png         # Hero profile photo
 └── uploads/
-    ├── resume.pdf      # Optional: downloadable CV
+  ├── Abhay_Resume.pdf # Optional: downloadable CV
     └── certs/          # Uploaded certification images
 ```
 
@@ -54,7 +54,7 @@ The site uses **6 MySQL tables**, all created by `setup.sql`:
 |---|---|
 | `contacts` | Stores contact form submissions |
 | `skills` | Skills shown in the Skills section |
-| `projects` | Projects shown in the Projects section |
+| `projects` | Projects shown in the Projects section (supports icon/logo + sort order) |
 | `certifications` | Certification cards with image uploads |
 | `social_embeds` | Embeddable social media posts/widgets |
 | `site_settings` | Key-value store for admin-configurable settings |
@@ -144,7 +144,7 @@ Log in at `/admin.php` with your credentials set in `.env`.
 |---|---|
 | **Messages** | Read and delete contact form submissions |
 | **Skills** | Add/edit/delete skills with icons and descriptions |
-| **Projects** | Add/edit/delete projects with links to live demo & GitHub |
+| **Projects** | Add/edit/delete projects with logo/icon, custom order, and links to live demo & GitHub |
 | **Certifications** | Upload certificate images with title, issuer, and date |
 | **Settings** | Toggle the "Open to Work" badge, hero tilt effect, notification email, and GoatCounter analytics ID |
 

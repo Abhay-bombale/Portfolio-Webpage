@@ -27,11 +27,12 @@ CREATE TABLE IF NOT EXISTS `skills` (
 -- Projects table
 CREATE TABLE IF NOT EXISTS `projects` (
   `id`          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-  `icon`        VARCHAR(20)     NOT NULL DEFAULT '',
+  `icon`        VARCHAR(255)    NOT NULL DEFAULT '',
   `title`       VARCHAR(120)    NOT NULL,
   `description` VARCHAR(500)    NOT NULL,
   `project_url` VARCHAR(500)    NOT NULL DEFAULT '',
   `github_url`  VARCHAR(500)    NOT NULL DEFAULT '',
+  `sort_order`  SMALLINT        NOT NULL DEFAULT 0,
   `created_at`  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -85,6 +86,8 @@ ALTER TABLE `contacts` ADD INDEX `idx_contacts_email` (`email`);
 -- ── Add updated_at columns ────────────────────────────────────────────────────
 ALTER TABLE `skills`   ADD COLUMN IF NOT EXISTS `sort_order`  SMALLINT  NOT NULL DEFAULT 0 AFTER `description`;
 ALTER TABLE `skills`   ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
+ALTER TABLE `projects` MODIFY COLUMN `icon` VARCHAR(255) NOT NULL DEFAULT '';
+ALTER TABLE `projects` ADD COLUMN IF NOT EXISTS `sort_order`  SMALLINT  NOT NULL DEFAULT 0 AFTER `github_url`;
 ALTER TABLE `projects`  ADD COLUMN IF NOT EXISTS `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER `created_at`;
 
 -- ── Optional: seed your existing hardcoded skills so the site isn't empty ─────

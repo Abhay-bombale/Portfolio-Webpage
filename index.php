@@ -17,10 +17,18 @@ $_conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
 if (!$_conn->connect_error) {
     $_conn->set_charset('utf8mb4');
 
+  $projectsHasSortOrder = false;
+  $colCheck = $_conn->query("SHOW COLUMNS FROM projects LIKE 'sort_order'");
+  if ($colCheck) {
+    $projectsHasSortOrder = ($colCheck->num_rows > 0);
+    $colCheck->close();
+  }
+
     $r = $_conn->query('SELECT icon, title, description FROM skills ORDER BY sort_order ASC, id ASC');
     if ($r) { while ($row = $r->fetch_assoc()) { $_skills[] = $row; } }
 
-    $r = $_conn->query('SELECT icon, title, description, project_url, github_url FROM projects ORDER BY id ASC');
+  $projectOrder = $projectsHasSortOrder ? 'sort_order ASC, id ASC' : 'id ASC';
+  $r = $_conn->query("SELECT icon, title, description, project_url, github_url FROM projects ORDER BY {$projectOrder}");
     if ($r) { while ($row = $r->fetch_assoc()) { $_projects[] = $row; } }
 
     $r = $_conn->query('SELECT label, embed_code FROM social_embeds ORDER BY sort_order ASC, id ASC');
@@ -35,7 +43,13 @@ if (!$_conn->connect_error) {
 function eh($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
-$_cvExists = file_exists(__DIR__ . '/uploads/resume.pdf');
+$_cvRelPath = null;
+if (file_exists(__DIR__ . '/uploads/Abhay_Resume.pdf')) {
+  $_cvRelPath = 'uploads/Abhay_Resume.pdf';
+} elseif (file_exists(__DIR__ . '/uploads/resume.pdf')) {
+  $_cvRelPath = 'uploads/resume.pdf';
+}
+$_cvExists = ($_cvRelPath !== null);
 ?>
 <!doctype html>
 <html lang="en">
@@ -220,7 +234,7 @@ $_cvExists = file_exists(__DIR__ . '/uploads/resume.pdf');
           <div class="hero-buttons">
             <a href="#contact" class="btn btn-primary">Contact Me</a>
             <?php if ($_cvExists): ?>
-              <a href="uploads/resume.pdf" class="btn btn-secondary" download>📄 Download CV</a>
+              <a href="<?= eh($_cvRelPath) ?>" class="btn btn-secondary" download>📄 Download CV</a>
             <?php endif; ?>
           </div>
         </div>
@@ -305,10 +319,20 @@ $_cvExists = file_exists(__DIR__ . '/uploads/resume.pdf');
           <p style="color:#6b7280;text-align:center;grid-column:1/-1;">No projects listed yet.</p>
         <?php else: ?>
           <?php foreach ($_projects as $proj): ?>
+            <?php
+              $projectIcon = trim((string)$proj['icon']);
+              $projectHasLogo = ($projectIcon !== '') && preg_match('/(https?:\/\/|^\.{0,2}\/|^uploads\/|\.(png|jpe?g|gif|webp|svg)(\?.*)?$)/i', $projectIcon);
+            ?>
             <div class="project-card">
               <div class="project-image" role="img" aria-label="<?= eh($proj['title']) ?> preview"
                    style="background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:2rem;">
-                <?= eh($proj['icon']) ?>
+                <?php if ($projectHasLogo): ?>
+                  <img src="<?= eh($projectIcon) ?>" alt="<?= eh($proj['title']) ?> logo" style="max-width:72%;max-height:72%;object-fit:contain;" loading="lazy" />
+                <?php elseif ($projectIcon !== ''): ?>
+                  <?= eh($projectIcon) ?>
+                <?php else: ?>
+                  <span style="font-size:.9rem;font-weight:600;opacity:.85;">Project</span>
+                <?php endif; ?>
               </div>
               <div class="project-content">
                 <h3><?= eh($proj['title']) ?></h3>
