@@ -55,31 +55,46 @@ function tableHasColumn($table, $column) {
 }
 
 $projectsHasSortOrder = tableHasColumn('projects', 'sort_order');
+$skillsHasImagePath = tableHasColumn('skills', 'image_path');
+$projectsHasImagePath = tableHasColumn('projects', 'image_path');
 
-function renderIconEmbed($raw, $altText, $imgSizePx = 36) {
-  $raw = trim((string)$raw);
-  if ($raw === '') {
-    return '📁';
-  }
+$skillsUploadDir = __DIR__ . '/uploads/skills/';
+$projectsUploadDir = __DIR__ . '/uploads/projects/';
+if (!is_dir($skillsUploadDir)) { @mkdir($skillsUploadDir, 0755, true); }
+if (!is_dir($projectsUploadDir)) { @mkdir($projectsUploadDir, 0755, true); }
 
-  $isImageUrl = preg_match('/^(https?:\/\/|\.{0,2}\/|uploads\/).+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i', $raw);
-  if ($isImageUrl) {
-    $safeSrc = e($raw);
-    $safeAlt = e($altText . ' logo');
-    $size = (int)$imgSizePx;
-    return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
-  }
+function renderEmojiOrImage($emoji, $imagePath, $altText, $imgSizePx = 36) {
+    $imagePath = trim((string)$imagePath);
+    if ($imagePath !== '') {
+        $safeSrc = e('uploads/' . ltrim($imagePath, '/'));
+        $safeAlt = e($altText . ' image');
+        $size = (int)$imgSizePx;
+        return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
+    }
 
-  $hasHtml = preg_match('/<[^>]+>/', $raw) === 1;
-  if ($hasHtml) {
-    $allowed = '<i><span><img><svg><path><g><use><circle><rect><line><polyline><polygon><ellipse><iframe>';
-    $clean = strip_tags($raw, $allowed);
-    $clean = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
-    $clean = preg_replace('/javascript\s*:/i', '', $clean);
-    return $clean;
-  }
+    $emoji = trim((string)$emoji);
+    return ($emoji !== '') ? e($emoji) : '📁';
+}
 
-  return e($raw);
+function uploadPngJpgFile($fileField, $prefix, $destDir) {
+    if (!isset($_FILES[$fileField]) || $_FILES[$fileField]['error'] !== UPLOAD_ERR_OK) {
+        return '';
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $_FILES[$fileField]['tmp_name']);
+    finfo_close($finfo);
+
+    $allowed = array('image/jpeg' => 'jpg', 'image/png' => 'png');
+    if (!isset($allowed[$mime]) || $_FILES[$fileField]['size'] > 3 * 1024 * 1024) {
+        return '';
+    }
+
+    $fileName = $prefix . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $allowed[$mime];
+    if (move_uploaded_file($_FILES[$fileField]['tmp_name'], $destDir . $fileName)) {
+        return $fileName;
+    }
+    return '';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -131,9 +146,15 @@ if ($loggedIn && $tab === 'skills') {
             $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
             $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
             $sort  = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        $imagePath = $skillsHasImagePath ? uploadPngJpgFile('skill_image', 'skill', $skillsUploadDir) : '';
             if ($title !== '' && $desc !== '') {
-                $stmt = db()->prepare('INSERT INTO skills (icon, title, description, sort_order) VALUES (?, ?, ?, ?)');
-                $stmt->bind_param('sssi', $icon, $title, $desc, $sort);
+          if ($skillsHasImagePath) {
+            $stmt = db()->prepare('INSERT INTO skills (icon, image_path, title, description, sort_order) VALUES (?, ?, ?, ?, ?)');
+            $stmt->bind_param('ssssi', $icon, $imagePath, $title, $desc, $sort);
+          } else {
+            $stmt = db()->prepare('INSERT INTO skills (icon, title, description, sort_order) VALUES (?, ?, ?, ?)');
+            $stmt->bind_param('sssi', $icon, $title, $desc, $sort);
+          }
                 $stmt->execute();
                 $stmt->close();
             }
@@ -157,8 +178,24 @@ if ($loggedIn && $tab === 'skills') {
             $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
             $desc  = trim(isset($_POST['desc'])  ? $_POST['desc']  : '');
             $sort  = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
-            $stmt  = db()->prepare('UPDATE skills SET icon=?, title=?, description=?, sort_order=? WHERE id=?');
-            $stmt->bind_param('sssii', $icon, $title, $desc, $sort, $id);
+        $newImage = $skillsHasImagePath ? uploadPngJpgFile('skill_image', 'skill', $skillsUploadDir) : '';
+
+        if ($skillsHasImagePath && $newImage !== '') {
+          $old = db()->prepare('SELECT image_path FROM skills WHERE id = ?');
+          $old->bind_param('i', $id);
+          $old->execute();
+          $oldRow = $old->get_result()->fetch_assoc();
+          $old->close();
+          if ($oldRow && !empty($oldRow['image_path'])) {
+            $oldFile = $skillsUploadDir . $oldRow['image_path'];
+            if (file_exists($oldFile)) { @unlink($oldFile); }
+          }
+          $stmt = db()->prepare('UPDATE skills SET icon=?, image_path=?, title=?, description=?, sort_order=? WHERE id=?');
+          $stmt->bind_param('ssssii', $icon, $newImage, $title, $desc, $sort, $id);
+        } else {
+          $stmt = db()->prepare('UPDATE skills SET icon=?, title=?, description=?, sort_order=? WHERE id=?');
+          $stmt->bind_param('sssii', $icon, $title, $desc, $sort, $id);
+        }
             $stmt->execute();
             $stmt->close();
         }
@@ -167,6 +204,17 @@ if ($loggedIn && $tab === 'skills') {
 
     if (isset($_GET['delete_skill'])) {
         $id   = (int)$_GET['delete_skill'];
+      if ($skillsHasImagePath) {
+        $stmt = db()->prepare('SELECT image_path FROM skills WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row && !empty($row['image_path'])) {
+          $f = $skillsUploadDir . $row['image_path'];
+          if (file_exists($f)) { @unlink($f); }
+        }
+      }
         $stmt = db()->prepare('DELETE FROM skills WHERE id = ?');
         $stmt->bind_param('i', $id);
         $stmt->execute();
@@ -188,17 +236,24 @@ if ($loggedIn && $tab === 'projects') {
             $desc   = trim(isset($_POST['desc'])   ? $_POST['desc']   : '');
             $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
             $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
-      $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        $imagePath = $projectsHasImagePath ? uploadPngJpgFile('project_image', 'project', $projectsUploadDir) : '';
             if (!isValidUrl($url)) $url = '';
             if (!isValidUrl($github)) $github = '';
             if ($title !== '' && $desc !== '') {
-        if ($projectsHasSortOrder) {
-          $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
-          $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $sort);
-        } else {
-          $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
-          $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
-        }
+          if ($projectsHasSortOrder && $projectsHasImagePath) {
+            $stmt = db()->prepare('INSERT INTO projects (icon, image_path, title, description, project_url, github_url, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            $stmt->bind_param('ssssssi', $icon, $imagePath, $title, $desc, $url, $github, $sort);
+          } elseif ($projectsHasSortOrder) {
+            $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url, sort_order) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $sort);
+          } elseif ($projectsHasImagePath) {
+            $stmt = db()->prepare('INSERT INTO projects (icon, image_path, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmt->bind_param('ssssss', $icon, $imagePath, $title, $desc, $url, $github);
+          } else {
+            $stmt = db()->prepare('INSERT INTO projects (icon, title, description, project_url, github_url) VALUES (?, ?, ?, ?, ?)');
+            $stmt->bind_param('sssss', $icon, $title, $desc, $url, $github);
+          }
                 $stmt->execute();
                 $stmt->close();
             }
@@ -224,11 +279,31 @@ if ($loggedIn && $tab === 'projects') {
             $url    = trim(isset($_POST['url'])    ? $_POST['url']    : '');
             $github = trim(isset($_POST['github']) ? $_POST['github'] : '');
             $sort   = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+            $newImage = $projectsHasImagePath ? uploadPngJpgFile('project_image', 'project', $projectsUploadDir) : '';
             if (!isValidUrl($url)) $url = '';
             if (!isValidUrl($github)) $github = '';
-            if ($projectsHasSortOrder) {
+
+            if ($projectsHasImagePath && $newImage !== '') {
+              $old = db()->prepare('SELECT image_path FROM projects WHERE id = ?');
+              $old->bind_param('i', $id);
+              $old->execute();
+              $oldRow = $old->get_result()->fetch_assoc();
+              $old->close();
+              if ($oldRow && !empty($oldRow['image_path'])) {
+                $oldFile = $projectsUploadDir . $oldRow['image_path'];
+                if (file_exists($oldFile)) { @unlink($oldFile); }
+              }
+            }
+
+            if ($projectsHasSortOrder && $projectsHasImagePath && $newImage !== '') {
+              $stmt = db()->prepare('UPDATE projects SET icon=?, image_path=?, title=?, description=?, project_url=?, github_url=?, sort_order=? WHERE id=?');
+              $stmt->bind_param('ssssssii', $icon, $newImage, $title, $desc, $url, $github, $sort, $id);
+            } elseif ($projectsHasSortOrder) {
               $stmt = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=?, sort_order=? WHERE id=?');
               $stmt->bind_param('sssssii', $icon, $title, $desc, $url, $github, $sort, $id);
+            } elseif ($projectsHasImagePath && $newImage !== '') {
+              $stmt = db()->prepare('UPDATE projects SET icon=?, image_path=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
+              $stmt->bind_param('ssssssi', $icon, $newImage, $title, $desc, $url, $github, $id);
             } else {
               $stmt = db()->prepare('UPDATE projects SET icon=?, title=?, description=?, project_url=?, github_url=? WHERE id=?');
               $stmt->bind_param('sssssi', $icon, $title, $desc, $url, $github, $id);
@@ -241,6 +316,17 @@ if ($loggedIn && $tab === 'projects') {
 
     if (isset($_GET['delete_project'])) {
         $id   = (int)$_GET['delete_project'];
+      if ($projectsHasImagePath) {
+        $stmt = db()->prepare('SELECT image_path FROM projects WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $row = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        if ($row && !empty($row['image_path'])) {
+          $f = $projectsUploadDir . $row['image_path'];
+          if (file_exists($f)) { @unlink($f); }
+        }
+      }
         $stmt = db()->prepare('DELETE FROM projects WHERE id = ?');
         $stmt->bind_param('i', $id);
         $stmt->execute();
@@ -759,13 +845,13 @@ function pageUrl($page, $search, $base) {
   <?php if (!empty($editSkill)): ?>
   <div class="panel">
     <h3>✏️ Edit Skill — <?php echo e($editSkill['title']); ?></h3>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <?php echo csrfField(); ?>
       <input type="hidden" name="skill_id" value="<?php echo (int)$editSkill['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Embed Code / Emoji</label>
-          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🔐 or &lt;i class='devicon-python-plain'&gt;&lt;/i&gt;"><?php echo e($editSkill['icon']); ?></textarea>
+          <label>Emoji</label>
+          <input type="text" name="icon" value="<?php echo e($editSkill['icon']); ?>" placeholder="e.g. 🔐" maxlength="20" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -779,6 +865,16 @@ function pageUrl($page, $search, $base) {
           <label>Sort Order</label>
           <input type="number" name="sort_order" value="<?php echo (int)$editSkill['sort_order']; ?>" placeholder="0" />
         </div>
+        <div class="form-group span-2">
+          <label>Skill Image (PNG/JPG, leave empty to keep current)</label>
+          <input type="file" name="skill_image" accept="image/png,image/jpeg" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 3 MB · PNG or JPG</p>
+          <?php if ($skillsHasImagePath && !empty($editSkill['image_path'])): ?>
+            <div style="margin-top:.5rem;">
+              <img src="uploads/skills/<?php echo e($editSkill['image_path']); ?>" alt="Current skill image" style="max-width:120px;max-height:120px;border-radius:6px;border:1px solid var(--border);object-fit:contain;background:#fff;padding:.25rem;" />
+            </div>
+          <?php endif; ?>
+        </div>
       </div>
       <div class="panel-actions">
         <button type="submit" name="save_skill" class="btn btn-success">Save Changes</button>
@@ -789,12 +885,12 @@ function pageUrl($page, $search, $base) {
   <?php else: ?>
   <div class="panel">
     <h3>➕ Add New Skill</h3>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Embed Code / Emoji</label>
-          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🔐 or &lt;i class='devicon-python-plain'&gt;&lt;/i&gt;"></textarea>
+          <label>Emoji</label>
+          <input type="text" name="icon" placeholder="e.g. 🔐" maxlength="20" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -807,6 +903,11 @@ function pageUrl($page, $search, $base) {
         <div class="form-group">
           <label>Sort Order</label>
           <input type="number" name="sort_order" value="0" placeholder="0" />
+        </div>
+        <div class="form-group span-2">
+          <label>Skill Image (PNG/JPG)</label>
+          <input type="file" name="skill_image" accept="image/png,image/jpeg" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 3 MB · PNG or JPG</p>
         </div>
       </div>
       <div class="panel-actions">
@@ -827,7 +928,7 @@ function pageUrl($page, $search, $base) {
       <?php foreach ($skills as $s): ?>
         <div class="item-card">
           <div class="item-card-header">
-            <div class="item-card-icon"><?php echo renderIconEmbed($s['icon'], $s['title'], 34); ?></div>
+            <div class="item-card-icon"><?php echo renderEmojiOrImage($s['icon'], ($skillsHasImagePath && !empty($s['image_path'])) ? ('skills/' . $s['image_path']) : '', $s['title'], 34); ?></div>
             <div class="item-card-title"><?php echo e($s['title']); ?></div>
           </div>
           <div class="item-card-desc"><?php echo e($s['description']); ?></div>
@@ -963,13 +1064,13 @@ function pageUrl($page, $search, $base) {
   <?php if (!empty($editProject)): ?>
   <div class="panel">
     <h3>✏️ Edit Project — <?php echo e($editProject['title']); ?></h3>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <?php echo csrfField(); ?>
       <input type="hidden" name="project_id" value="<?php echo (int)$editProject['id']; ?>" />
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Embed Code / Emoji</label>
-          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🛡️ or &lt;img src='https://example.com/logo.svg' /&gt;"><?php echo e($editProject['icon']); ?></textarea>
+          <label>Emoji</label>
+          <input type="text" name="icon" value="<?php echo e($editProject['icon']); ?>" placeholder="e.g. 🛡️" maxlength="20" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -993,6 +1094,16 @@ function pageUrl($page, $search, $base) {
           <input type="number" name="sort_order" value="<?php echo isset($editProject['sort_order']) ? (int)$editProject['sort_order'] : 0; ?>" placeholder="0" />
         </div>
         <?php endif; ?>
+        <div class="form-group span-2">
+          <label>Project Image (PNG/JPG, leave empty to keep current)</label>
+          <input type="file" name="project_image" accept="image/png,image/jpeg" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 3 MB · PNG or JPG</p>
+          <?php if ($projectsHasImagePath && !empty($editProject['image_path'])): ?>
+            <div style="margin-top:.5rem;">
+              <img src="uploads/projects/<?php echo e($editProject['image_path']); ?>" alt="Current project image" style="max-width:160px;max-height:120px;border-radius:6px;border:1px solid var(--border);object-fit:contain;background:#fff;padding:.25rem;" />
+            </div>
+          <?php endif; ?>
+        </div>
       </div>
       <div class="panel-actions">
         <button type="submit" name="save_project" class="btn btn-success">Save Changes</button>
@@ -1003,12 +1114,12 @@ function pageUrl($page, $search, $base) {
   <?php else: ?>
   <div class="panel">
     <h3>➕ Add New Project</h3>
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <?php echo csrfField(); ?>
       <div class="panel-grid">
         <div class="form-group">
-          <label>Icon / Embed Code / Emoji</label>
-          <textarea name="icon" rows="2" maxlength="5000" placeholder="e.g. 🛡️ or &lt;img src='https://example.com/logo.svg' /&gt;"></textarea>
+          <label>Emoji</label>
+          <input type="text" name="icon" placeholder="e.g. 🛡️" maxlength="20" />
         </div>
         <div class="form-group">
           <label>Title *</label>
@@ -1032,6 +1143,11 @@ function pageUrl($page, $search, $base) {
           <input type="number" name="sort_order" value="0" placeholder="0" />
         </div>
         <?php endif; ?>
+        <div class="form-group span-2">
+          <label>Project Image (PNG/JPG)</label>
+          <input type="file" name="project_image" accept="image/png,image/jpeg" style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 3 MB · PNG or JPG</p>
+        </div>
       </div>
       <div class="panel-actions">
         <button type="submit" name="add_project" class="btn btn-primary">Add Project</button>
@@ -1052,7 +1168,7 @@ function pageUrl($page, $search, $base) {
         <div class="item-card">
           <div class="item-card-header">
             <div class="item-card-icon">
-              <?php echo renderIconEmbed($p['icon'], $p['title'], 36); ?>
+              <?php echo renderEmojiOrImage($p['icon'], ($projectsHasImagePath && !empty($p['image_path'])) ? ('projects/' . $p['image_path']) : '', $p['title'], 36); ?>
             </div>
             <div class="item-card-title"><?php echo e($p['title']); ?></div>
           </div>

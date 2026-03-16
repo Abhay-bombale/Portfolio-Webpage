@@ -656,6 +656,13 @@ a:hover {
   display: block;
 }
 
+.skill-icon img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  display: inline-block;
+}
+
 .skill-card h3 {
   margin-bottom: 0.5rem;
   color: var(--text-dark);
@@ -701,6 +708,13 @@ a:hover {
   justify-content: center;
   color: white;
   font-size: 4rem;
+}
+
+.project-image img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  display: block;
 }
 
 .project-content {

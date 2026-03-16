@@ -17,18 +17,33 @@ $_conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
 if (!$_conn->connect_error) {
     $_conn->set_charset('utf8mb4');
 
-  $projectsHasSortOrder = false;
-  $colCheck = $_conn->query("SHOW COLUMNS FROM projects LIKE 'sort_order'");
-  if ($colCheck) {
-    $projectsHasSortOrder = ($colCheck->num_rows > 0);
-    $colCheck->close();
-  }
+    $projectsHasSortOrder = false;
+    $projectsHasImagePath = false;
+    $skillsHasImagePath = false;
 
-    $r = $_conn->query('SELECT icon, title, description FROM skills ORDER BY sort_order ASC, id ASC');
+    $colCheck = $_conn->query("SHOW COLUMNS FROM projects LIKE 'sort_order'");
+    if ($colCheck) {
+        $projectsHasSortOrder = ($colCheck->num_rows > 0);
+        $colCheck->close();
+    }
+    $colCheck = $_conn->query("SHOW COLUMNS FROM projects LIKE 'image_path'");
+    if ($colCheck) {
+        $projectsHasImagePath = ($colCheck->num_rows > 0);
+        $colCheck->close();
+    }
+    $colCheck = $_conn->query("SHOW COLUMNS FROM skills LIKE 'image_path'");
+    if ($colCheck) {
+        $skillsHasImagePath = ($colCheck->num_rows > 0);
+        $colCheck->close();
+    }
+
+    $skillImageSelect = $skillsHasImagePath ? ', image_path' : ', "" AS image_path';
+    $r = $_conn->query("SELECT icon, title, description{$skillImageSelect} FROM skills ORDER BY sort_order ASC, id ASC");
     if ($r) { while ($row = $r->fetch_assoc()) { $_skills[] = $row; } }
 
-  $projectOrder = $projectsHasSortOrder ? 'sort_order ASC, id ASC' : 'id ASC';
-  $r = $_conn->query("SELECT icon, title, description, project_url, github_url FROM projects ORDER BY {$projectOrder}");
+    $projectOrder = $projectsHasSortOrder ? 'sort_order ASC, id ASC' : 'id ASC';
+    $projectImageSelect = $projectsHasImagePath ? ', image_path' : ', "" AS image_path';
+    $r = $_conn->query("SELECT icon, title, description, project_url, github_url{$projectImageSelect} FROM projects ORDER BY {$projectOrder}");
     if ($r) { while ($row = $r->fetch_assoc()) { $_projects[] = $row; } }
 
     $r = $_conn->query('SELECT label, embed_code FROM social_embeds ORDER BY sort_order ASC, id ASC');
@@ -44,31 +59,20 @@ function eh($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
-function renderIconEmbed($raw, $altText, $imgSizePx = 42) {
-  $raw = trim((string)$raw);
-  if ($raw === '') {
+function renderEmojiOrImage($emoji, $imagePath, $altText, $imgSizePx = 42) {
+    $imagePath = trim((string)$imagePath);
+    if ($imagePath !== '') {
+        $safeSrc = eh('uploads/' . ltrim($imagePath, '/'));
+        $safeAlt = eh($altText . ' image');
+        $size = (int)$imgSizePx;
+        return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
+    }
+
+    $emoji = trim((string)$emoji);
+    if ($emoji !== '') {
+        return eh($emoji);
+    }
     return '<span style="font-size:.9rem;font-weight:600;opacity:.85;">Project</span>';
-  }
-
-  $isImageUrl = preg_match('/^(https?:\/\/|\.{0,2}\/|uploads\/).+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i', $raw);
-  if ($isImageUrl) {
-    $safeSrc = eh($raw);
-    $safeAlt = eh($altText . ' logo');
-    $size = (int)$imgSizePx;
-    return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
-  }
-
-  $hasHtml = preg_match('/<[^>]+>/', $raw) === 1;
-  if ($hasHtml) {
-    // Allow admin-provided embed snippets for icon/logo display while stripping risky attributes.
-    $allowed = '<i><span><img><svg><path><g><use><circle><rect><line><polyline><polygon><ellipse><iframe>';
-    $clean = strip_tags($raw, $allowed);
-    $clean = preg_replace('/\son\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean);
-    $clean = preg_replace('/javascript\s*:/i', '', $clean);
-    return $clean;
-  }
-
-  return eh($raw);
 }
 $_cvRelPath = null;
 if (file_exists(__DIR__ . '/uploads/Abhay_Resume.pdf')) {
@@ -327,7 +331,7 @@ $_cvExists = ($_cvRelPath !== null);
         <?php else: ?>
           <?php foreach ($_skills as $sk): ?>
             <div class="skill-card">
-              <div class="skill-icon"><?= renderIconEmbed($sk['icon'], $sk['title'], 40) ?></div>
+              <div class="skill-icon"><?= renderEmojiOrImage($sk['icon'], !empty($sk['image_path']) ? ('skills/' . $sk['image_path']) : '', $sk['title'], 40) ?></div>
               <h3><?= eh($sk['title']) ?></h3>
               <p><?= eh($sk['description']) ?></p>
             </div>
@@ -349,7 +353,7 @@ $_cvExists = ($_cvRelPath !== null);
             <div class="project-card">
               <div class="project-image" role="img" aria-label="<?= eh($proj['title']) ?> preview"
                    style="background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:2rem;">
-                <?= renderIconEmbed($proj['icon'], $proj['title'], 92) ?>
+                <?= renderEmojiOrImage($proj['icon'], !empty($proj['image_path']) ? ('projects/' . $proj['image_path']) : '', $proj['title'], 92) ?>
               </div>
               <div class="project-content">
                 <h3><?= eh($proj['title']) ?></h3>
