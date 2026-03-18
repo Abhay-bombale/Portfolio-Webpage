@@ -4,6 +4,18 @@ A fully dynamic, database-driven personal portfolio website built with **PHP**, 
 
 ---
 
+## ⚡ Quick: How This Works
+
+1. **Page load (`index.php`)** — PHP renders the main sections and fetches dynamic content (skills, projects, settings) from MySQL.
+2. **Shared bootstrap (`config.php`)** — Loads environment variables, connects to the database, and provides shared helpers/security headers.
+3. **Client interactivity (`main.js`)** — Handles dark mode, mobile menu, scroll reveals, hero tilt, and contact form AJAX submission.
+4. **Contact handling (`contact.php`)** — Receives form POST requests, validates/sanitizes input, applies CSRF + anti-spam checks, then stores messages.
+5. **Content management (`admin.php`)** — Authenticated admin updates skills/projects/certifications/settings, which are then reflected on public pages.
+
+In short: **MySQL stores content, PHP serves it, JavaScript enhances it, and the admin panel controls it.**
+
+---
+
 ## ✨ Features
 
 - **Dynamic Content** — Skills, projects, and certifications are all managed through an admin panel and stored in MySQL; no hardcoded HTML needed.
