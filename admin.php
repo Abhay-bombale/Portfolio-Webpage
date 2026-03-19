@@ -60,8 +60,26 @@ $projectsHasImagePath = tableHasColumn('projects', 'image_path');
 
 $skillsUploadDir = __DIR__ . '/uploads/skills/';
 $projectsUploadDir = __DIR__ . '/uploads/projects/';
+$heroUploadDir = __DIR__ . '/uploads/hero/';
+$articlesUploadDir = __DIR__ . '/uploads/articles/';
+$storageUploadDir = __DIR__ . '/uploads/storage/';
+$adminStorageMaxBytes = 2048 * 1024 * 1024;
 if (!is_dir($skillsUploadDir)) { @mkdir($skillsUploadDir, 0755, true); }
 if (!is_dir($projectsUploadDir)) { @mkdir($projectsUploadDir, 0755, true); }
+if (!is_dir($heroUploadDir)) { @mkdir($heroUploadDir, 0755, true); }
+if (!is_dir($articlesUploadDir)) { @mkdir($articlesUploadDir, 0755, true); }
+if (!is_dir($storageUploadDir)) { @mkdir($storageUploadDir, 0755, true); }
+
+$heroTableExists = false;
+$articlesTableExists = false;
+$storageTableExists = false;
+
+$chk = db()->query("SHOW TABLES LIKE 'hero_images'");
+if ($chk) { $heroTableExists = ($chk->num_rows > 0); $chk->close(); }
+$chk = db()->query("SHOW TABLES LIKE 'articles'");
+if ($chk) { $articlesTableExists = ($chk->num_rows > 0); $chk->close(); }
+$chk = db()->query("SHOW TABLES LIKE 'admin_storage_files'");
+if ($chk) { $storageTableExists = ($chk->num_rows > 0); $chk->close(); }
 
 function renderEmojiOrImage($emoji, $imagePath, $altText, $imgSizePx = 36) {
     $imagePath = trim((string)$imagePath);
@@ -95,6 +113,59 @@ function uploadPngJpgFile($fileField, $prefix, $destDir) {
         return $fileName;
     }
     return '';
+}
+
+function slugify($text) {
+  $text = strtolower(trim((string)$text));
+  $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+  $text = trim((string)$text, '-');
+  return ($text === '') ? 'article' : $text;
+}
+
+function generateUniqueArticleSlug($baseSlug, $excludeId = 0) {
+  $base = slugify($baseSlug);
+  $slug = $base;
+  $n = 2;
+  while (true) {
+    if ($excludeId > 0) {
+      $stmt = db()->prepare('SELECT id FROM articles WHERE slug = ? AND id != ? LIMIT 1');
+      $stmt->bind_param('si', $slug, $excludeId);
+    } else {
+      $stmt = db()->prepare('SELECT id FROM articles WHERE slug = ? LIMIT 1');
+      $stmt->bind_param('s', $slug);
+    }
+    $stmt->execute();
+    $exists = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$exists) {
+      return $slug;
+    }
+    $slug = $base . '-' . $n;
+    $n++;
+  }
+}
+
+function uploadWithMimeMap($fileField, $prefix, $destDir, $allowedMap, $maxBytes) {
+  if (!isset($_FILES[$fileField]) || $_FILES[$fileField]['error'] !== UPLOAD_ERR_OK) {
+    return '';
+  }
+  if ($_FILES[$fileField]['size'] <= 0 || $_FILES[$fileField]['size'] > $maxBytes) {
+    return '';
+  }
+
+  $finfo = finfo_open(FILEINFO_MIME_TYPE);
+  $mime = finfo_file($finfo, $_FILES[$fileField]['tmp_name']);
+  finfo_close($finfo);
+  if (!isset($allowedMap[$mime])) {
+    return '';
+  }
+
+  $ext = $allowedMap[$mime];
+  $fileName = $prefix . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+  if (move_uploaded_file($_FILES[$fileField]['tmp_name'], $destDir . $fileName)) {
+    return $fileName;
+  }
+  return '';
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -132,6 +203,260 @@ $siteSettings = array('badge_text' => 'Open to Work', 'badge_visible' => '1', 't
 if ($loggedIn && $tab === 'settings') {
     $r = db()->query('SELECT setting_key, setting_value FROM site_settings');
     if ($r) { while ($row = $r->fetch_assoc()) { $siteSettings[$row['setting_key']] = $row['setting_value']; } }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HERO IMAGES ACTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+$heroError = '';
+if ($loggedIn && $tab === 'hero') {
+  if (!$heroTableExists) {
+    $heroError = 'hero_images table is missing. Please run setup.sql first.';
+  } else {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_hero'])) {
+      if (verifyCsrf()) {
+        $alt = trim(isset($_POST['alt_text']) ? $_POST['alt_text'] : '');
+        $alt = $alt !== '' ? $alt : 'Hero image';
+        $file = uploadWithMimeMap(
+          'hero_image',
+          'hero',
+          $heroUploadDir,
+          array('image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'),
+          6 * 1024 * 1024
+        );
+        if ($file !== '') {
+          $stmt = db()->prepare('INSERT INTO hero_images (image_path, alt_text, is_active) VALUES (?, ?, 0)');
+          $stmt->bind_param('ss', $file, $alt);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=hero'); exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_active_hero'])) {
+      if (verifyCsrf()) {
+        $heroId = (int)$_POST['hero_id'];
+        db()->query('UPDATE hero_images SET is_active = 0');
+        $stmt = db()->prepare('UPDATE hero_images SET is_active = 1 WHERE id = ?');
+        $stmt->bind_param('i', $heroId);
+        $stmt->execute();
+        $stmt->close();
+      }
+      header('Location: ' . $baseUrl . '?tab=hero'); exit;
+    }
+
+    if (isset($_GET['delete_hero'])) {
+      $id = (int)$_GET['delete_hero'];
+      $stmt = db()->prepare('SELECT image_path, is_active FROM hero_images WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+
+      if ($row) {
+        $f = $heroUploadDir . $row['image_path'];
+        if (file_exists($f)) { @unlink($f); }
+        $stmt = db()->prepare('DELETE FROM hero_images WHERE id = ?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $stmt->close();
+
+        if ((int)$row['is_active'] === 1) {
+          $first = db()->query('SELECT id FROM hero_images ORDER BY id ASC LIMIT 1');
+          if ($first && ($fRow = $first->fetch_assoc())) {
+            $newActiveId = (int)$fRow['id'];
+            $stmt = db()->prepare('UPDATE hero_images SET is_active = 1 WHERE id = ?');
+            $stmt->bind_param('i', $newActiveId);
+            $stmt->execute();
+            $stmt->close();
+          }
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=hero'); exit;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ARTICLES ACTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+$editArticle = null;
+$articlesError = '';
+if ($loggedIn && $tab === 'articles') {
+  if (!$articlesTableExists) {
+    $articlesError = 'articles table is missing. Please run setup.sql first.';
+  } else {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_article'])) {
+      if (verifyCsrf()) {
+        $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
+        $slugInput = trim(isset($_POST['slug']) ? $_POST['slug'] : '');
+        $excerpt = trim(isset($_POST['excerpt']) ? $_POST['excerpt'] : '');
+        $content = trim(isset($_POST['content']) ? $_POST['content'] : '');
+        $isPublished = isset($_POST['is_published']) ? 1 : 0;
+        $sort = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        $slug = generateUniqueArticleSlug($slugInput !== '' ? $slugInput : $title);
+        $cover = uploadWithMimeMap(
+          'cover_image',
+          'article',
+          $articlesUploadDir,
+          array('image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'),
+          6 * 1024 * 1024
+        );
+        if ($title !== '' && $content !== '') {
+          if ($isPublished) {
+            $publishedAt = date('Y-m-d H:i:s');
+            $stmt = db()->prepare('INSERT INTO articles (slug, title, excerpt, content, cover_image, is_published, sort_order, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            $stmt->bind_param('sssssiis', $slug, $title, $excerpt, $content, $cover, $isPublished, $sort, $publishedAt);
+          } else {
+            $stmt = db()->prepare('INSERT INTO articles (slug, title, excerpt, content, cover_image, is_published, sort_order, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)');
+            $stmt->bind_param('sssssii', $slug, $title, $excerpt, $content, $cover, $isPublished, $sort);
+          }
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=articles'); exit;
+    }
+
+    if (isset($_GET['edit_article'])) {
+      $id = (int)$_GET['edit_article'];
+      $stmt = db()->prepare('SELECT * FROM articles WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $editArticle = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_article'])) {
+      if (verifyCsrf()) {
+        $id = (int)$_POST['article_id'];
+        $title = trim(isset($_POST['title']) ? $_POST['title'] : '');
+        $slugInput = trim(isset($_POST['slug']) ? $_POST['slug'] : '');
+        $excerpt = trim(isset($_POST['excerpt']) ? $_POST['excerpt'] : '');
+        $content = trim(isset($_POST['content']) ? $_POST['content'] : '');
+        $isPublished = isset($_POST['is_published']) ? 1 : 0;
+        $sort = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        $slug = generateUniqueArticleSlug($slugInput !== '' ? $slugInput : $title, $id);
+        $newCover = uploadWithMimeMap(
+          'cover_image',
+          'article',
+          $articlesUploadDir,
+          array('image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'),
+          6 * 1024 * 1024
+        );
+
+        $old = db()->prepare('SELECT cover_image, is_published, published_at FROM articles WHERE id = ?');
+        $old->bind_param('i', $id);
+        $old->execute();
+        $oldRow = $old->get_result()->fetch_assoc();
+        $old->close();
+
+        if ($newCover !== '' && $oldRow && !empty($oldRow['cover_image'])) {
+          $oldFile = $articlesUploadDir . $oldRow['cover_image'];
+          if (file_exists($oldFile)) { @unlink($oldFile); }
+        }
+
+        if ($newCover !== '') {
+          if ($isPublished) {
+            $publishedAt = ($oldRow && !empty($oldRow['published_at'])) ? $oldRow['published_at'] : date('Y-m-d H:i:s');
+            $stmt = db()->prepare('UPDATE articles SET slug=?, title=?, excerpt=?, content=?, cover_image=?, is_published=?, sort_order=?, published_at=? WHERE id=?');
+            $stmt->bind_param('sssssiisi', $slug, $title, $excerpt, $content, $newCover, $isPublished, $sort, $publishedAt, $id);
+          } else {
+            $stmt = db()->prepare('UPDATE articles SET slug=?, title=?, excerpt=?, content=?, cover_image=?, is_published=?, sort_order=?, published_at=NULL WHERE id=?');
+            $stmt->bind_param('sssssiii', $slug, $title, $excerpt, $content, $newCover, $isPublished, $sort, $id);
+          }
+        } else {
+          if ($isPublished) {
+            $publishedAt = ($oldRow && !empty($oldRow['published_at'])) ? $oldRow['published_at'] : date('Y-m-d H:i:s');
+            $stmt = db()->prepare('UPDATE articles SET slug=?, title=?, excerpt=?, content=?, is_published=?, sort_order=?, published_at=? WHERE id=?');
+            $stmt->bind_param('ssssiisi', $slug, $title, $excerpt, $content, $isPublished, $sort, $publishedAt, $id);
+          } else {
+            $stmt = db()->prepare('UPDATE articles SET slug=?, title=?, excerpt=?, content=?, is_published=?, sort_order=?, published_at=NULL WHERE id=?');
+            $stmt->bind_param('ssssiii', $slug, $title, $excerpt, $content, $isPublished, $sort, $id);
+          }
+        }
+        $stmt->execute();
+        $stmt->close();
+      }
+      header('Location: ' . $baseUrl . '?tab=articles'); exit;
+    }
+
+    if (isset($_GET['delete_article'])) {
+      $id = (int)$_GET['delete_article'];
+      $stmt = db()->prepare('SELECT cover_image FROM articles WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+
+      if ($row && !empty($row['cover_image'])) {
+        $f = $articlesUploadDir . $row['cover_image'];
+        if (file_exists($f)) { @unlink($f); }
+      }
+      $stmt = db()->prepare('DELETE FROM articles WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $stmt->close();
+      header('Location: ' . $baseUrl . '?tab=articles'); exit;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MINI STORAGE ACTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+$storageError = '';
+if ($loggedIn && $tab === 'storage') {
+  if (!$storageTableExists) {
+    $storageError = 'admin_storage_files table is missing. Please run setup.sql first.';
+  } else {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_storage_file'])) {
+      if (verifyCsrf()) {
+        $allowed = array(
+          'application/pdf' => 'pdf',
+          'text/plain' => 'txt',
+          'text/markdown' => 'md',
+          'text/csv' => 'csv',
+          'application/zip' => 'zip',
+          'image/jpeg' => 'jpg',
+          'image/png' => 'png',
+          'image/webp' => 'webp'
+        );
+        $stored = uploadWithMimeMap('storage_file', 'store', $storageUploadDir, $allowed, $adminStorageMaxBytes);
+        if ($stored !== '') {
+          $original = isset($_FILES['storage_file']['name']) ? basename($_FILES['storage_file']['name']) : $stored;
+          $mime = isset($_FILES['storage_file']['type']) ? (string)$_FILES['storage_file']['type'] : '';
+          $size = isset($_FILES['storage_file']['size']) ? (int)$_FILES['storage_file']['size'] : 0;
+          $relPath = 'storage/' . $stored;
+          $stmt = db()->prepare('INSERT INTO admin_storage_files (stored_name, original_name, mime_type, file_size, file_path) VALUES (?, ?, ?, ?, ?)');
+          $stmt->bind_param('sssis', $stored, $original, $mime, $size, $relPath);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=storage'); exit;
+    }
+
+    if (isset($_GET['delete_storage'])) {
+      $id = (int)$_GET['delete_storage'];
+      $stmt = db()->prepare('SELECT stored_name FROM admin_storage_files WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+
+      if ($row) {
+        $f = $storageUploadDir . $row['stored_name'];
+        if (file_exists($f)) { @unlink($f); }
+      }
+      $stmt = db()->prepare('DELETE FROM admin_storage_files WHERE id = ?');
+      $stmt->bind_param('i', $id);
+      $stmt->execute();
+      $stmt->close();
+      header('Location: ' . $baseUrl . '?tab=storage'); exit;
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -577,6 +902,9 @@ $skills   = array();
 $projects = array();
 $embeds   = array();
 $certs    = array();
+$heroImages = array();
+$articles = array();
+$storageFiles = array();
 if ($loggedIn) {
     if ($tab === 'skills') {
         $r = db()->query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC');
@@ -594,6 +922,18 @@ if ($loggedIn) {
     if ($tab === 'certs') {
         $r = db()->query('SELECT * FROM certifications ORDER BY sort_order ASC, id ASC');
         if ($r) { while ($row = $r->fetch_assoc()) { $certs[] = $row; } }
+    }
+    if ($tab === 'hero' && $heroTableExists) {
+      $r = db()->query('SELECT * FROM hero_images ORDER BY is_active DESC, id DESC');
+      if ($r) { while ($row = $r->fetch_assoc()) { $heroImages[] = $row; } }
+    }
+    if ($tab === 'articles' && $articlesTableExists) {
+      $r = db()->query('SELECT * FROM articles ORDER BY is_published DESC, sort_order ASC, id DESC');
+      if ($r) { while ($row = $r->fetch_assoc()) { $articles[] = $row; } }
+    }
+    if ($tab === 'storage' && $storageTableExists) {
+      $r = db()->query('SELECT * FROM admin_storage_files ORDER BY id DESC');
+      if ($r) { while ($row = $r->fetch_assoc()) { $storageFiles[] = $row; } }
     }
 }
 
@@ -746,9 +1086,12 @@ function pageUrl($page, $search, $base) {
 
 <div class="tabs">
   <a href="?tab=messages" class="tab-link <?php echo $tab==='messages'?'active':''; ?>">📨 Messages</a>
+  <a href="?tab=hero"     class="tab-link <?php echo $tab==='hero'    ?'active':''; ?>">🖼 Hero</a>
   <a href="?tab=skills"   class="tab-link <?php echo $tab==='skills'  ?'active':''; ?>">🔧 Skills</a>
   <a href="?tab=certs"    class="tab-link <?php echo $tab==='certs'   ?'active':''; ?>">� Certifications</a>
   <a href="?tab=projects" class="tab-link <?php echo $tab==='projects'?'active':''; ?>">🚀 Projects</a>
+  <a href="?tab=articles" class="tab-link <?php echo $tab==='articles'?'active':''; ?>">📝 Articles</a>
+  <a href="?tab=storage"  class="tab-link <?php echo $tab==='storage' ?'active':''; ?>">🗂 Storage</a>
   <a href="?tab=embeds"   class="tab-link <?php echo $tab==='embeds'  ?'active':''; ?>">📌 Social Embeds</a>
   <a href="?tab=settings" class="tab-link <?php echo $tab==='settings'?'active':''; ?>">⚙️ Settings</a>
 </div>
@@ -837,6 +1180,63 @@ function pageUrl($page, $search, $base) {
         <a class="page-btn" href="<?php echo pageUrl($currentPage+1, $search, $baseUrl); ?>">Next →</a>
       <?php endif; ?>
     </div>
+  <?php endif; ?>
+
+<!-- ═══════════════════════ HERO TAB ═════════════════════════════════════════ -->
+<?php elseif ($tab === 'hero'): ?>
+
+  <?php if ($heroError !== ''): ?>
+    <div class="error-msg"><?php echo e($heroError); ?></div>
+  <?php else: ?>
+    <div class="panel">
+      <h3>🖼️ Hero Image Gallery</h3>
+      <p class="panel-hint">Upload multiple hero images and choose one active image to show on the homepage.</p>
+      <form method="POST" enctype="multipart/form-data">
+        <?php echo csrfField(); ?>
+        <div class="panel-grid">
+          <div class="form-group span-2">
+            <label>Hero Image (JPG/PNG/WebP)</label>
+            <input type="file" name="hero_image" accept="image/jpeg,image/png,image/webp" required style="padding:.4rem;" />
+            <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Max 6 MB</p>
+          </div>
+          <div class="form-group span-2">
+            <label>Alt Text</label>
+            <input type="text" name="alt_text" maxlength="255" placeholder="e.g. Portrait with cyber themed background" />
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button type="submit" name="upload_hero" class="btn btn-primary">Upload Hero Image</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="section-header">
+      <h2>Hero Gallery <span style="color:var(--muted);font-weight:400;font-size:.9rem;">(<?php echo count($heroImages); ?>)</span></h2>
+    </div>
+
+    <?php if (empty($heroImages)): ?>
+      <div class="empty-state"><div class="icon">🖼️</div><p>No hero images yet.</p></div>
+    <?php else: ?>
+      <div class="cards-grid">
+        <?php foreach ($heroImages as $h): ?>
+          <div class="item-card">
+            <img src="uploads/hero/<?php echo e($h['image_path']); ?>" alt="<?php echo e($h['alt_text']); ?>" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" />
+            <div style="font-size:.8rem;color:var(--muted);">Uploaded: <?php echo e($h['created_at']); ?></div>
+            <div style="font-size:.8rem;color:var(--muted);">Status: <?php echo ((int)$h['is_active'] === 1) ? 'Active' : 'Inactive'; ?></div>
+            <div class="item-card-footer">
+              <?php if ((int)$h['is_active'] !== 1): ?>
+                <form method="POST" style="display:inline-block;">
+                  <?php echo csrfField(); ?>
+                  <input type="hidden" name="hero_id" value="<?php echo (int)$h['id']; ?>" />
+                  <button class="btn btn-success" type="submit" name="set_active_hero">Set Active</button>
+                </form>
+              <?php endif; ?>
+              <a href="?tab=hero&delete_hero=<?php echo (int)$h['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this hero image?')">🗑 Delete</a>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
   <?php endif; ?>
 
 <!-- ═══════════════════════ SKILLS TAB ═══════════════════════════════════════ -->
@@ -1195,6 +1595,181 @@ function pageUrl($page, $search, $base) {
         </div>
       <?php endforeach; ?>
     </div>
+  <?php endif; ?>
+
+<!-- ═══════════════════════ ARTICLES TAB ═════════════════════════════════════ -->
+<?php elseif ($tab === 'articles'): ?>
+
+  <?php if ($articlesError !== ''): ?>
+    <div class="error-msg"><?php echo e($articlesError); ?></div>
+  <?php elseif (!empty($editArticle)): ?>
+  <div class="panel">
+    <h3>✏️ Edit Article — <?php echo e($editArticle['title']); ?></h3>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <input type="hidden" name="article_id" value="<?php echo (int)$editArticle['id']; ?>" />
+      <div class="panel-grid">
+        <div class="form-group span-2">
+          <label>Title *</label>
+          <input type="text" name="title" required maxlength="200" value="<?php echo e($editArticle['title']); ?>" />
+        </div>
+        <div class="form-group span-2">
+          <label>Slug</label>
+          <input type="text" name="slug" maxlength="140" value="<?php echo e($editArticle['slug']); ?>" />
+        </div>
+        <div class="form-group span-2">
+          <label>Excerpt</label>
+          <textarea name="excerpt" rows="2" maxlength="500"><?php echo e($editArticle['excerpt']); ?></textarea>
+        </div>
+        <div class="form-group span-2">
+          <label>Article Content *</label>
+          <textarea name="content" rows="10" required><?php echo e($editArticle['content']); ?></textarea>
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="<?php echo (int)$editArticle['sort_order']; ?>" />
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:.5rem;">
+            <input type="checkbox" name="is_published" value="1" <?php echo ((int)$editArticle['is_published'] === 1) ? 'checked' : ''; ?> />
+            Published
+          </label>
+        </div>
+        <div class="form-group span-2">
+          <label>Cover Image (optional)</label>
+          <input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp" style="padding:.4rem;" />
+          <?php if (!empty($editArticle['cover_image'])): ?>
+            <div style="margin-top:.6rem;">
+              <img src="uploads/articles/<?php echo e($editArticle['cover_image']); ?>" alt="Cover" style="max-width:220px;max-height:140px;border-radius:8px;border:1px solid var(--border);object-fit:cover;" />
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="save_article" class="btn btn-success">Save Article</button>
+        <a href="?tab=articles" class="btn btn-outline">Cancel</a>
+      </div>
+    </form>
+  </div>
+  <?php else: ?>
+  <div class="panel">
+    <h3>➕ Add New Article</h3>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <div class="panel-grid">
+        <div class="form-group span-2">
+          <label>Title *</label>
+          <input type="text" name="title" required maxlength="200" placeholder="Write-up title" />
+        </div>
+        <div class="form-group span-2">
+          <label>Slug (optional)</label>
+          <input type="text" name="slug" maxlength="140" placeholder="auto-generated-from-title" />
+        </div>
+        <div class="form-group span-2">
+          <label>Excerpt</label>
+          <textarea name="excerpt" rows="2" maxlength="500" placeholder="Short summary shown on homepage cards"></textarea>
+        </div>
+        <div class="form-group span-2">
+          <label>Article Content *</label>
+          <textarea name="content" rows="10" required placeholder="Write the full article here..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="0" />
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:.5rem;">
+            <input type="checkbox" name="is_published" value="1" checked />
+            Published
+          </label>
+        </div>
+        <div class="form-group span-2">
+          <label>Cover Image (optional)</label>
+          <input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp" style="padding:.4rem;" />
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="add_article" class="btn btn-primary">Publish Article</button>
+      </div>
+    </form>
+  </div>
+  <?php endif; ?>
+
+  <div class="section-header">
+    <h2>All Articles <span style="color:var(--muted);font-weight:400;font-size:.9rem;">(<?php echo count($articles); ?>)</span></h2>
+  </div>
+
+  <?php if (empty($articles)): ?>
+    <div class="empty-state"><div class="icon">📝</div><p>No articles yet.</p></div>
+  <?php else: ?>
+    <div class="cards-grid">
+      <?php foreach ($articles as $a): ?>
+        <div class="item-card">
+          <?php if (!empty($a['cover_image'])): ?>
+            <img src="uploads/articles/<?php echo e($a['cover_image']); ?>" alt="<?php echo e($a['title']); ?>" style="width:100%;max-height:170px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" />
+          <?php endif; ?>
+          <div class="item-card-title"><?php echo e($a['title']); ?></div>
+          <div style="font-size:.78rem;color:var(--muted);">/<?php echo e($a['slug']); ?> · <?php echo ((int)$a['is_published'] === 1) ? 'Published' : 'Draft'; ?></div>
+          <div class="item-card-desc"><?php echo e($a['excerpt']); ?></div>
+          <div class="item-card-footer">
+            <a href="?tab=articles&edit_article=<?php echo (int)$a['id']; ?>" class="btn btn-warning">✏️ Edit</a>
+            <a href="?tab=articles&delete_article=<?php echo (int)$a['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this article?')">🗑 Delete</a>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+<!-- ═══════════════════════ STORAGE TAB ══════════════════════════════════════ -->
+<?php elseif ($tab === 'storage'): ?>
+
+  <?php if ($storageError !== ''): ?>
+    <div class="error-msg"><?php echo e($storageError); ?></div>
+  <?php else: ?>
+  <div class="panel">
+    <h3>🗂️ Admin Mini Storage</h3>
+    <p class="panel-hint">Upload internal files for your own use. Files are public-link accessible but not shown anywhere on the user-facing site. Max file size: 2048 MB.</p>
+    <form method="POST" enctype="multipart/form-data">
+      <?php echo csrfField(); ?>
+      <div class="panel-grid">
+        <div class="form-group span-2">
+          <label>Upload File</label>
+          <input type="file" name="storage_file" required style="padding:.4rem;" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Allowed: PDF, TXT, MD, CSV, ZIP, JPG, PNG, WebP</p>
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="upload_storage_file" class="btn btn-primary">Upload File</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-wrap">
+    <?php if (empty($storageFiles)): ?>
+      <div class="empty-state"><div class="icon">🗄️</div><p>No files in mini storage yet.</p></div>
+    <?php else: ?>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Name</th><th>Type</th><th>Size</th><th>URL</th><th>Uploaded</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($storageFiles as $sf): ?>
+            <tr>
+              <td><?php echo (int)$sf['id']; ?></td>
+              <td><?php echo e($sf['original_name']); ?></td>
+              <td><?php echo e($sf['mime_type']); ?></td>
+              <td><?php echo round(((int)$sf['file_size']) / 1024, 1); ?> KB</td>
+              <td><a class="email-link" href="uploads/<?php echo e($sf['file_path']); ?>" target="_blank" rel="noopener">Open</a></td>
+              <td><?php echo e($sf['created_at']); ?></td>
+              <td>
+                <a href="?tab=storage&delete_storage=<?php echo (int)$sf['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this stored file?')">Delete</a>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    <?php endif; ?>
+  </div>
   <?php endif; ?>
 
 <!-- ═══════════════════════ SOCIAL EMBEDS TAB ════════════════════════════════ -->

@@ -5,12 +5,19 @@ sendSecurityHeaders();
 $_skills   = array();
 $_projects = array();
 $_embeds   = array();
+$_articles = array();
+$_heroActive = array(
+  'image_path' => '',
+  'alt_text' => 'Photo of Abhay Bombale',
+);
 $_settings = array(
     'badge_text'     => 'Open to Work',
     'badge_visible'  => '1',
     'tilt_enabled'   => '1',
     'notify_email'   => '',
     'goatcounter_id' => '',
+  'article_section_title' => 'Write-ups',
+  'article_section_subtitle' => 'Notes, thoughts, and security learning logs.',
 );
 
 $_conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
@@ -51,6 +58,28 @@ if (!$_conn->connect_error) {
 
     $r = $_conn->query('SELECT setting_key, setting_value FROM site_settings');
     if ($r) { while ($row = $r->fetch_assoc()) { $_settings[$row['setting_key']] = $row['setting_value']; } }
+
+    $tableCheck = $_conn->query("SHOW TABLES LIKE 'hero_images'");
+    $heroTableExists = $tableCheck && $tableCheck->num_rows > 0;
+    if ($tableCheck) { $tableCheck->close(); }
+    if ($heroTableExists) {
+      $r = $_conn->query('SELECT image_path, alt_text FROM hero_images WHERE is_active = 1 ORDER BY id DESC LIMIT 1');
+      if ($r && ($row = $r->fetch_assoc())) {
+        $_heroActive = $row;
+      }
+    }
+
+    $tableCheck = $_conn->query("SHOW TABLES LIKE 'articles'");
+    $articlesTableExists = $tableCheck && $tableCheck->num_rows > 0;
+    if ($tableCheck) { $tableCheck->close(); }
+    if ($articlesTableExists) {
+      $r = $_conn->query('SELECT title, slug, excerpt, cover_image, published_at FROM articles WHERE is_published = 1 ORDER BY sort_order ASC, COALESCE(published_at, created_at) DESC LIMIT 6');
+      if ($r) {
+        while ($row = $r->fetch_assoc()) {
+          $_articles[] = $row;
+        }
+      }
+    }
 
     $_conn->close();
 }
@@ -94,11 +123,11 @@ $_cvExists = ($_cvRelPath !== null);
   <meta property="og:title" content="Abhay Bombale | Portfolio" />
   <meta property="og:description" content="Student & Aspiring Cybersecurity Analyst" />
   <meta property="og:url" content="https://yourwebsite.com" />
-  <meta property="og:image" content="https://yourwebsite.com/Profile.png" />
+  <meta property="og:image" content="https://yourwebsite.com/assets/images/Profile.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Abhay Bombale | Portfolio" />
   <meta name="twitter:description" content="Student & Aspiring Cybersecurity Analyst" />
-  <meta name="twitter:image" content="https://yourwebsite.com/Profile.png" />
+  <meta name="twitter:image" content="https://yourwebsite.com/assets/images/Profile.png" />
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -116,8 +145,8 @@ $_cvExists = ($_cvRelPath !== null);
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
   <style>
     /* ── Social Embeds Section ─────────────────────────────────────────────── */
     .social-feed {
@@ -233,6 +262,9 @@ $_cvExists = ($_cvRelPath !== null);
           <li><a href="#skills"   class="nav-link">Skills</a></li>
           <li><a href="certifications.php" class="nav-link">Certs</a></li>
           <li><a href="#projects" class="nav-link">Projects</a></li>
+          <?php if (!empty($_articles)): ?>
+          <li><a href="#articles" class="nav-link">Write-ups</a></li>
+          <?php endif; ?>
           <?php if (!empty($_embeds)): ?>
           <li><a href="#social"   class="nav-link">Posts</a></li>
           <?php endif; ?>
@@ -278,7 +310,7 @@ $_cvExists = ($_cvRelPath !== null);
               <div class="hero-card-glow"></div>
               <!-- The card itself -->
               <div class="hero-card-inner">
-                <img src="Profile.png" alt="Photo of Abhay Bombale" loading="lazy" />
+                <img src="<?php echo !empty($_heroActive['image_path']) ? ('uploads/hero/' . eh($_heroActive['image_path'])) : 'assets/images/Profile.png'; ?>" alt="<?php echo !empty($_heroActive['alt_text']) ? eh($_heroActive['alt_text']) : 'Photo of Abhay Bombale'; ?>" loading="lazy" />
               </div>
               <!-- Badge — only rendered if visible -->
               <?php if ($_settings['badge_visible'] === '1' && $_settings['badge_text'] !== ''): ?>
@@ -376,6 +408,36 @@ $_cvExists = ($_cvRelPath !== null);
       </div>
     </div>
   </section>
+
+  <?php if (!empty($_articles)): ?>
+  <section id="articles" class="articles">
+    <div class="container">
+      <h2><?= eh($_settings['article_section_title']) ?></h2>
+      <p class="articles-intro"><?= eh($_settings['article_section_subtitle']) ?></p>
+      <div class="articles-grid">
+        <?php foreach ($_articles as $article): ?>
+          <article class="article-card">
+            <?php if (!empty($article['cover_image'])): ?>
+              <a href="article.php?slug=<?= eh($article['slug']) ?>" class="article-cover-link">
+                <img class="article-cover" src="uploads/articles/<?= eh($article['cover_image']) ?>" alt="<?= eh($article['title']) ?>" loading="lazy" />
+              </a>
+            <?php endif; ?>
+            <div class="article-card-body">
+              <h3><a href="article.php?slug=<?= eh($article['slug']) ?>"><?= eh($article['title']) ?></a></h3>
+              <?php if (!empty($article['published_at'])): ?>
+                <p class="article-meta"><?= eh(date('M d, Y', strtotime($article['published_at']))) ?></p>
+              <?php endif; ?>
+              <?php if (!empty($article['excerpt'])): ?>
+                <p><?= eh($article['excerpt']) ?></p>
+              <?php endif; ?>
+              <a class="btn btn-secondary" href="article.php?slug=<?= eh($article['slug']) ?>">Read More</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </div>
+  </section>
+  <?php endif; ?>
 
   <!-- Social Feed Section (only shown when embeds exist) -->
   <?php if (!empty($_embeds)): ?>
@@ -479,7 +541,7 @@ $_cvExists = ($_cvRelPath !== null);
     </div>
   </footer>
 
-  <script src="main.js" defer></script>
+  <script src="assets/js/main.js" defer></script>
   <?php if (!empty($_settings['goatcounter_id'])): ?>
   <script data-goatcounter="https://<?= eh($_settings['goatcounter_id']) ?>.goatcounter.com/count"
           async src="//gc.zgo.at/count.js"></script>

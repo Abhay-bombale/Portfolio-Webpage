@@ -68,13 +68,57 @@ CREATE TABLE IF NOT EXISTS `certifications` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Hero images table (gallery with one active image)
+CREATE TABLE IF NOT EXISTS `hero_images` (
+  `id`          INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `image_path`  VARCHAR(255)    NOT NULL,
+  `alt_text`    VARCHAR(255)    NOT NULL DEFAULT 'Hero image',
+  `is_active`   TINYINT(1)      NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Articles / write-ups table
+CREATE TABLE IF NOT EXISTS `articles` (
+  `id`            INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `slug`          VARCHAR(140)    NOT NULL,
+  `title`         VARCHAR(200)    NOT NULL,
+  `excerpt`       VARCHAR(500)    NOT NULL DEFAULT '',
+  `content`       LONGTEXT        NOT NULL,
+  `cover_image`   VARCHAR(255)    NOT NULL DEFAULT '',
+  `is_published`  TINYINT(1)      NOT NULL DEFAULT 0,
+  `sort_order`    INT             NOT NULL DEFAULT 0,
+  `published_at`  DATETIME        DEFAULT NULL,
+  `created_at`    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_articles_slug` (`slug`),
+  KEY `idx_articles_pub` (`is_published`, `published_at`),
+  KEY `idx_articles_sort` (`sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Admin mini-storage table
+CREATE TABLE IF NOT EXISTS `admin_storage_files` (
+  `id`             INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+  `stored_name`    VARCHAR(255)    NOT NULL,
+  `original_name`  VARCHAR(255)    NOT NULL,
+  `mime_type`      VARCHAR(120)    NOT NULL DEFAULT '',
+  `file_size`      BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `file_path`      VARCHAR(255)    NOT NULL,
+  `created_at`     TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_storage_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Seed default settings (safe to re-run — INSERT IGNORE won't overwrite existing values)
 INSERT IGNORE INTO `site_settings` (`setting_key`, `setting_value`) VALUES
   ('badge_text',       'Open to Work'),
   ('badge_visible',    '1'),
   ('tilt_enabled',     '1'),
   ('notify_email',     'bombleabhay24@gmail.com'),
-  ('goatcounter_id',   '');
+  ('goatcounter_id',   ''),
+  ('article_section_title', 'Write-ups'),
+  ('article_section_subtitle', 'Notes, thoughts, and security learning logs.');
 
 -- ── Indexes for better query performance ──────────────────────────────────────
 -- MySQL/MariaDB will silently skip if the index already exists (CREATE INDEX IF NOT EXISTS

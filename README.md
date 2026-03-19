@@ -9,7 +9,10 @@ A fully dynamic, database-driven personal portfolio website built with **PHP**, 
 - **Dynamic Content** — Skills, projects, and certifications are all managed through an admin panel and stored in MySQL; no hardcoded HTML needed.
 - **Admin Panel** (`admin.php`) — A secure, session-based control panel to manage:
   - Contact form messages (view & delete)
+  - Hero image gallery (upload multiple images and pick active hero)
   - Skills, projects, and certifications (add, edit, delete)
+  - Articles / write-ups (publish and manage content)
+  - Mini storage uploads for private admin use (public links, admin-managed)
   - Site-wide settings (badge text, email notifications, analytics)
 - **Contact Form** — AJAX-powered form with spam protection (honeypot), rate limiting, server-side validation, and email notifications.
 - **Certifications Page** — A dedicated `/certifications.php` page with an image gallery grid for displaying credential badges.
@@ -33,22 +36,31 @@ portfolio/
 ├── contact.php         # Contact form handler (JSON API endpoint)
 ├── config.php          # Shared bootstrap: DB, env loading, helpers, security
 ├── setup.sql           # Database schema + seed data (safe to re-run)
-├── main.js             # All client-side JS (vanilla, no dependencies)
-├── style.css           # All styles (CSS custom properties, responsive)
+├── article.php         # Single article detail page (?slug=...)
+├── assets/
+│   ├── css/
+│   │   └── style.css   # All styles (CSS custom properties, responsive)
+│   ├── js/
+│   │   └── main.js     # All client-side JS (vanilla, no dependencies)
+│   └── images/
+│       ├── Profile.png
+│       ├── heroimage.jpg
+│       └── favicon.png
 ├── 404.php             # Custom 404 error page
 ├── .env                # 🔒 Environment variables (not committed to Git)
-├── favicon.png         # Site favicon
-├── Profile.png         # Hero profile photo
 └── uploads/
-  ├── Abhay_Resume.pdf # Optional: downloadable CV
-    └── certs/          # Uploaded certification images
+  ├── Abhay_Resume.pdf  # Optional: downloadable CV
+  ├── certs/            # Uploaded certification images
+  ├── hero/             # Uploaded hero images
+  ├── articles/         # Uploaded article cover images
+  └── storage/          # Admin mini-storage files
 ```
 
 ---
 
 ## 🗄️ Database Schema
 
-The site uses **6 MySQL tables**, all created by `setup.sql`:
+The site uses **9 MySQL tables**, all created by `setup.sql`:
 
 | Table | Purpose |
 |---|---|
@@ -58,6 +70,9 @@ The site uses **6 MySQL tables**, all created by `setup.sql`:
 | `certifications` | Certification cards with image uploads |
 | `social_embeds` | Embeddable social media posts/widgets |
 | `site_settings` | Key-value store for admin-configurable settings |
+| `hero_images` | Hero image gallery with active selection |
+| `articles` | Article/write-up content with publish state and slug |
+| `admin_storage_files` | Admin mini-storage metadata |
 
 ---
 

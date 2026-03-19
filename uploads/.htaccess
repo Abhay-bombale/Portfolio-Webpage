@@ -1,5 +1,5 @@
-# Only allow PDF and image files to be served from this directory
-<FilesMatch "\.(?!(pdf|jpg|jpeg|png|gif|webp)$)">
+# Only allow known safe file types to be served from this directory
+<FilesMatch "\.(?!(pdf|jpg|jpeg|png|gif|webp|txt|md|csv|zip)$)">
     Order allow,deny
     Deny from all
 </FilesMatch>

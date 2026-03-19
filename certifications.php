@@ -37,8 +37,8 @@ function eh($s) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="icon" type="image/png" href="assets/images/favicon.png" />
 </head>
 <body>
 
@@ -126,7 +126,7 @@ function eh($s) {
     </div>
   </footer>
 
-  <script src="main.js" defer></script>
+  <script src="assets/js/main.js" defer></script>
   <?php if (!empty($_settings['goatcounter_id'])): ?>
   <script data-goatcounter="https://<?= eh($_settings['goatcounter_id']) ?>.goatcounter.com/count"
           async src="//gc.zgo.at/count.js"></script>

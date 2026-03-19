@@ -19,12 +19,14 @@ if (heroSub) {
 
 // ─── Reduced motion check ────────────────────────────────────────────────────
 var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+var isNarrowViewport = window.matchMedia('(max-width: 768px)').matches
+var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
 
 // ─── Hero card 3D tilt (mouse-tracking) ──────────────────────────────────────
 var heroWrap = document.getElementById('heroCardWrap')
 var heroCard = document.getElementById('heroCard')
 
-if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1' && !prefersReducedMotion) {
+if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1' && !prefersReducedMotion && !isNarrowViewport && !isTouchDevice) {
   var tiltMax    = 14
   var tiltActive = false
 
@@ -168,6 +170,11 @@ function showStatus(message, isSuccess) {
 }
 
 if (contactForm) {
+  contactForm.addEventListener('invalid', function(e) {
+    if (!e.target) return
+    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, true)
+
   contactForm.addEventListener('submit', async function(e) {
     e.preventDefault()
     e.stopPropagation()
