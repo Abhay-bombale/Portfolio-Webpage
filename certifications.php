@@ -32,6 +32,7 @@ function eh($s) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>Certifications | Abhay Bombale</title>
   <meta name="description" content="Certifications and credentials earned by Abhay Bombale." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -94,7 +95,7 @@ function eh($s) {
                 <a href="uploads/certs/<?= eh($cert['image_path']) ?>" target="_blank" rel="noopener" class="cert-card-img-link">
                   <img src="uploads/certs/<?= eh($cert['image_path']) ?>"
                        alt="<?= eh($cert['title']) ?>"
-                       class="cert-card-img" loading="lazy" />
+                       class="cert-card-img" loading="lazy" decoding="async" width="1200" height="848" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
                 </a>
               <?php endif; ?>
               <div class="cert-card-body">

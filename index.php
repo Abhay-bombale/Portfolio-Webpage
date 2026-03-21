@@ -20,6 +20,14 @@ $_settings = array(
   'article_section_subtitle' => 'Notes, thoughts, and security learning logs.',
 );
 
+$_habitData = array(
+    'current_streak' => 0,
+    'best_streak' => 0,
+    'freeze_balance' => 0,
+    'heatmap' => array(),
+    'recent_notes' => array(),
+);
+
 $_conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
 if (!$_conn->connect_error) {
     $_conn->set_charset('utf8mb4');
@@ -81,6 +89,57 @@ if (!$_conn->connect_error) {
       }
     }
 
+    $habitTablesExist = true;
+    $requiredHabitTables = array('streak_state', 'habit_logs', 'daily_notes');
+    foreach ($requiredHabitTables as $tblName) {
+      $tableCheck = $_conn->query("SHOW TABLES LIKE '" . $_conn->real_escape_string($tblName) . "'");
+      $exists = ($tableCheck && $tableCheck->num_rows > 0);
+      if ($tableCheck) { $tableCheck->close(); }
+      if (!$exists) {
+        $habitTablesExist = false;
+        break;
+      }
+    }
+
+    if ($habitTablesExist) {
+      $r = $_conn->query('SELECT setting_key, setting_value FROM streak_state');
+      if ($r) {
+        while ($row = $r->fetch_assoc()) {
+          if ($row['setting_key'] === 'current_streak') { $_habitData['current_streak'] = (int)$row['setting_value']; }
+          if ($row['setting_key'] === 'best_streak') { $_habitData['best_streak'] = (int)$row['setting_value']; }
+          if ($row['setting_key'] === 'freeze_balance') { $_habitData['freeze_balance'] = (int)$row['setting_value']; }
+        }
+        $r->close();
+      }
+
+      $r = $_conn->query(
+        'SELECT hl.log_date, COUNT(*) AS completed_count
+         FROM habit_logs hl
+         WHERE hl.completed = 1
+           AND hl.log_date >= DATE_SUB(CURDATE(), INTERVAL 76 DAY)
+         GROUP BY hl.log_date'
+      );
+      if ($r) {
+        while ($row = $r->fetch_assoc()) {
+          $_habitData['heatmap'][$row['log_date']] = (int)$row['completed_count'];
+        }
+        $r->close();
+      }
+
+      $r = $_conn->query(
+        'SELECT log_date, note, created_at, updated_at
+         FROM daily_notes
+         ORDER BY log_date DESC
+         LIMIT 5'
+      );
+      if ($r) {
+        while ($row = $r->fetch_assoc()) {
+          $_habitData['recent_notes'][] = $row;
+        }
+        $r->close();
+      }
+    }
+
     $_conn->close();
 }
 
@@ -94,7 +153,7 @@ function renderEmojiOrImage($emoji, $imagePath, $altText, $imgSizePx = 42) {
         $safeSrc = eh('uploads/' . ltrim($imagePath, '/'));
         $safeAlt = eh($altText . ' image');
         $size = (int)$imgSizePx;
-        return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" />';
+        return '<img src="' . $safeSrc . '" alt="' . $safeAlt . '" width="' . $size . '" height="' . $size . '" style="width:' . $size . 'px;height:' . $size . 'px;object-fit:contain;display:block;" loading="lazy" decoding="async" />';
     }
 
     $emoji = trim((string)$emoji);
@@ -116,6 +175,7 @@ $_cvExists = ($_cvRelPath !== null);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title>Abhay | Student & Aspiring Cybersecurity Analyst</title>
   <meta name="description" content="Abhay Bombale's personal portfolio showcasing cybersecurity skills and projects." />
   <link rel="canonical" href="https://yourwebsite.com/" />
@@ -176,9 +236,13 @@ $_cvExists = ($_cvRelPath !== null);
     }
     .embed-item iframe {
       border-radius: 0.75rem;
-      max-width: 100%;
+      width: 100% !important;
+      max-width: 504px;
       box-shadow: var(--shadow-md);
       display: block;
+    }
+    .embed-item > * {
+      max-width: 100%;
     }
     /* ── LinkedIn profile card (replaces broken SDK badge) ──────────────── */
     .li-profile-card {
@@ -262,6 +326,7 @@ $_cvExists = ($_cvRelPath !== null);
           <li><a href="#skills"   class="nav-link">Skills</a></li>
           <li><a href="certifications.php" class="nav-link">Certs</a></li>
           <li><a href="#projects" class="nav-link">Projects</a></li>
+          <li><a href="#activity" class="nav-link">Activity</a></li>
           <?php if (!empty($_articles)): ?>
           <li><a href="#articles" class="nav-link">Write-ups</a></li>
           <?php endif; ?>
@@ -310,7 +375,7 @@ $_cvExists = ($_cvRelPath !== null);
               <div class="hero-card-glow"></div>
               <!-- The card itself -->
               <div class="hero-card-inner">
-                <img src="<?php echo !empty($_heroActive['image_path']) ? ('uploads/hero/' . eh($_heroActive['image_path'])) : 'assets/images/Profile.png'; ?>" alt="<?php echo !empty($_heroActive['alt_text']) ? eh($_heroActive['alt_text']) : 'Photo of Abhay Bombale'; ?>" loading="lazy" />
+                <img src="<?php echo !empty($_heroActive['image_path']) ? ('uploads/hero/' . eh($_heroActive['image_path'])) : 'assets/images/Profile.png'; ?>" alt="<?php echo !empty($_heroActive['alt_text']) ? eh($_heroActive['alt_text']) : 'Photo of Abhay Bombale'; ?>" loading="eager" decoding="async" fetchpriority="high" width="420" height="420" />
               </div>
               <!-- Badge — only rendered if visible -->
               <?php if ($_settings['badge_visible'] === '1' && $_settings['badge_text'] !== ''): ?>
@@ -409,6 +474,80 @@ $_cvExists = ($_cvRelPath !== null);
     </div>
   </section>
 
+  <!-- Activity Section -->
+  <section id="activity" class="activity-section">
+    <div class="container">
+      <h2>Activity</h2>
+      <p class="activity-subtitle">Daily learning log - updated by me, every day.</p>
+
+      <div class="activity-stats">
+        <div class="activity-stat-card">
+          <span class="activity-stat-icon">🔥</span>
+          <span class="activity-stat-value"><?php echo (int)$_habitData['current_streak']; ?></span>
+          <span class="activity-stat-label">Day Streak</span>
+        </div>
+        <div class="activity-stat-card">
+          <span class="activity-stat-icon">🏆</span>
+          <span class="activity-stat-value"><?php echo (int)$_habitData['best_streak']; ?></span>
+          <span class="activity-stat-label">Best Streak</span>
+        </div>
+        <div class="activity-stat-card">
+          <span class="activity-stat-icon">🧊</span>
+          <span class="activity-stat-value"><?php echo (int)$_habitData['freeze_balance']; ?></span>
+          <span class="activity-stat-label">Freezes Saved</span>
+        </div>
+      </div>
+
+      <div class="heatmap-wrap">
+        <div class="heatmap-grid" id="heatmapGrid">
+          <?php
+          for ($i = 76; $i >= 0; $i--) {
+            $date = date('Y-m-d', strtotime('-' . $i . ' days'));
+            $count = isset($_habitData['heatmap'][$date]) ? (int)$_habitData['heatmap'][$date] : 0;
+            $level = 0;
+            if ($count === 1) { $level = 1; }
+            elseif ($count === 2) { $level = 2; }
+            elseif ($count === 3) { $level = 3; }
+            elseif ($count >= 4) { $level = 4; }
+            $label = date('M j, Y', strtotime($date));
+            $tooltip = $count > 0 ? ($label . ': ' . $count . ' habit' . ($count > 1 ? 's' : '')) : ($label . ': No activity');
+            echo '<div class="heatmap-cell level-' . $level . '" data-date="' . eh($date) . '" data-count="' . $count . '" title="' . eh($tooltip) . '"></div>';
+          }
+          ?>
+        </div>
+        <div class="heatmap-legend">
+          <span>Less</span>
+          <div class="heatmap-cell level-0"></div>
+          <div class="heatmap-cell level-1"></div>
+          <div class="heatmap-cell level-2"></div>
+          <div class="heatmap-cell level-3"></div>
+          <div class="heatmap-cell level-4"></div>
+          <span>More</span>
+        </div>
+      </div>
+
+      <div class="activity-note-panel" id="activityNotePanel" style="display:none;">
+        <div class="activity-note-date" id="activityNoteDate"></div>
+        <div class="activity-note-text" id="activityNoteText"></div>
+        <div class="activity-note-meta" id="activityNoteMeta"></div>
+      </div>
+
+      <script>
+      window.habitNotes = <?php
+        $notesMap = array();
+        foreach ($_habitData['recent_notes'] as $n) {
+          $notesMap[$n['log_date']] = array(
+            'note' => $n['note'],
+            'created_at' => date('M j, Y g:i A', strtotime($n['created_at'])),
+            'updated_at' => date('M j, Y g:i A', strtotime($n['updated_at'])),
+          );
+        }
+        echo json_encode($notesMap);
+      ?>;
+      </script>
+    </div>
+  </section>
+
   <?php if (!empty($_articles)): ?>
   <section id="articles" class="articles">
     <div class="container">
@@ -419,7 +558,7 @@ $_cvExists = ($_cvRelPath !== null);
           <article class="article-card">
             <?php if (!empty($article['cover_image'])): ?>
               <a href="article.php?slug=<?= eh($article['slug']) ?>" class="article-cover-link">
-                <img class="article-cover" src="uploads/articles/<?= eh($article['cover_image']) ?>" alt="<?= eh($article['title']) ?>" loading="lazy" />
+                <img class="article-cover" src="uploads/articles/<?= eh($article['cover_image']) ?>" alt="<?= eh($article['title']) ?>" loading="lazy" decoding="async" width="590" height="300" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
               </a>
             <?php endif; ?>
             <div class="article-card-body">

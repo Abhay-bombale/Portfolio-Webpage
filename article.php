@@ -46,6 +46,7 @@ function eh($s) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
   <title><?php echo $article ? (eh($article['title']) . ' | Abhay Bombale') : 'Article Not Found | Abhay Bombale'; ?></title>
   <meta name="description" content="<?php echo $article ? eh($article['excerpt']) : 'Article not found'; ?>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -104,7 +105,7 @@ function eh($s) {
 
           <?php if (!empty($article['cover_image'])): ?>
             <div class="article-cover-wrap">
-              <img src="uploads/articles/<?php echo eh($article['cover_image']); ?>" alt="<?php echo eh($article['title']); ?>" class="article-detail-cover" loading="lazy" />
+              <img src="uploads/articles/<?php echo eh($article['cover_image']); ?>" alt="<?php echo eh($article['title']); ?>" class="article-detail-cover" loading="lazy" decoding="async" width="1200" height="630" sizes="(max-width: 920px) 100vw, 880px" />
             </div>
           <?php endif; ?>
 

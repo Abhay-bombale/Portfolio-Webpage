@@ -73,6 +73,9 @@ if (!is_dir($storageUploadDir)) { @mkdir($storageUploadDir, 0755, true); }
 $heroTableExists = false;
 $articlesTableExists = false;
 $storageTableExists = false;
+$habitsTableExists = false;
+$habitLogsTableExists = false;
+$streakTableExists = false;
 
 $chk = db()->query("SHOW TABLES LIKE 'hero_images'");
 if ($chk) { $heroTableExists = ($chk->num_rows > 0); $chk->close(); }
@@ -80,6 +83,83 @@ $chk = db()->query("SHOW TABLES LIKE 'articles'");
 if ($chk) { $articlesTableExists = ($chk->num_rows > 0); $chk->close(); }
 $chk = db()->query("SHOW TABLES LIKE 'admin_storage_files'");
 if ($chk) { $storageTableExists = ($chk->num_rows > 0); $chk->close(); }
+$chk = db()->query("SHOW TABLES LIKE 'habits'");
+if ($chk) { $habitsTableExists = ($chk->num_rows > 0); $chk->close(); }
+$chk = db()->query("SHOW TABLES LIKE 'habit_logs'");
+if ($chk) { $habitLogsTableExists = ($chk->num_rows > 0); $chk->close(); }
+$chk = db()->query("SHOW TABLES LIKE 'streak_state'");
+if ($chk) { $streakTableExists = ($chk->num_rows > 0); $chk->close(); }
+
+function habitTargetForDate($logDate) {
+  $dayOfWeek = (int)date('N', strtotime($logDate));
+  return ($dayOfWeek >= 6) ? 3 : 1;
+}
+
+function applyStreakRules($state, $logDate, $completedCount) {
+  $currentStreak = isset($state['current_streak']) ? (int)$state['current_streak'] : 0;
+  $bestStreak = isset($state['best_streak']) ? (int)$state['best_streak'] : 0;
+  $freezeBalance = isset($state['freeze_balance']) ? (int)$state['freeze_balance'] : 0;
+  $lastActiveDate = isset($state['last_active_date']) ? (string)$state['last_active_date'] : '';
+
+  $target = habitTargetForDate($logDate);
+  $targetMet = ((int)$completedCount >= (int)$target);
+
+  if ($targetMet) {
+    $currentStreak += 1;
+    if ($currentStreak > $bestStreak) {
+      $bestStreak = $currentStreak;
+    }
+    if ((int)$completedCount >= 3) {
+      $freezeBalance += 1;
+    }
+    $lastActiveDate = $logDate;
+  } else {
+    if ($freezeBalance > 0) {
+      $freezeBalance -= 1;
+    } else {
+      $currentStreak = 0;
+    }
+  }
+
+  return array(
+    'target' => $target,
+    'target_met' => $targetMet ? 1 : 0,
+    'state' => array(
+      'current_streak' => (int)$currentStreak,
+      'best_streak' => (int)$bestStreak,
+      'freeze_balance' => (int)$freezeBalance,
+      'last_active_date' => $lastActiveDate,
+    ),
+  );
+}
+
+function loadStreakStateFromDb() {
+  $state = array(
+    'current_streak' => 0,
+    'best_streak' => 0,
+    'freeze_balance' => 0,
+    'last_active_date' => '',
+  );
+  $r = db()->query("SELECT setting_key, setting_value FROM streak_state");
+  if ($r) {
+    while ($row = $r->fetch_assoc()) {
+      if ($row['setting_key'] === 'current_streak') {
+        $state['current_streak'] = (int)$row['setting_value'];
+      }
+      if ($row['setting_key'] === 'best_streak') {
+        $state['best_streak'] = (int)$row['setting_value'];
+      }
+      if ($row['setting_key'] === 'freeze_balance') {
+        $state['freeze_balance'] = (int)$row['setting_value'];
+      }
+      if ($row['setting_key'] === 'last_active_date') {
+        $state['last_active_date'] = (string)$row['setting_value'];
+      }
+    }
+    $r->close();
+  }
+  return $state;
+}
 
 function renderEmojiOrImage($emoji, $imagePath, $altText, $imgSizePx = 36) {
     $imagePath = trim((string)$imagePath);
@@ -455,6 +535,65 @@ if ($loggedIn && $tab === 'storage') {
       $stmt->execute();
       $stmt->close();
       header('Location: ' . $baseUrl . '?tab=storage'); exit;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HABITS ACTIONS
+// ══════════════════════════════════════════════════════════════════════════════
+$habitsError = '';
+if ($loggedIn && $tab === 'habits') {
+  if (!$habitsTableExists || !$habitLogsTableExists || !$streakTableExists) {
+    $habitsError = 'Habit tracker tables are missing. Please run setup.sql first.';
+  } else {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_habit'])) {
+      if (verifyCsrf()) {
+        $name = trim(isset($_POST['name']) ? $_POST['name'] : '');
+        $emoji = trim(isset($_POST['emoji']) ? $_POST['emoji'] : '');
+        $sortOrder = isset($_POST['sort_order']) ? (int)$_POST['sort_order'] : 0;
+        if ($name !== '') {
+          $stmt = db()->prepare('INSERT INTO habits (name, emoji, sort_order, is_active) VALUES (?, ?, ?, 1)');
+          $stmt->bind_param('ssi', $name, $emoji, $sortOrder);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=habits'); exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_habit'])) {
+      if (verifyCsrf()) {
+        $habitId = isset($_POST['habit_id']) ? (int)$_POST['habit_id'] : 0;
+        if ($habitId > 0) {
+          $stmt = db()->prepare('UPDATE habits SET is_active = (1 - is_active) WHERE id = ?');
+          $stmt->bind_param('i', $habitId);
+          $stmt->execute();
+          $stmt->close();
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=habits'); exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_habit'])) {
+      if (verifyCsrf()) {
+        $habitId = isset($_POST['habit_id']) ? (int)$_POST['habit_id'] : 0;
+        if ($habitId > 0) {
+          $stmt = db()->prepare('SELECT COUNT(*) AS cnt FROM habit_logs WHERE habit_id = ?');
+          $stmt->bind_param('i', $habitId);
+          $stmt->execute();
+          $row = $stmt->get_result()->fetch_assoc();
+          $stmt->close();
+
+          if (!$row || (int)$row['cnt'] <= 0) {
+            $stmt = db()->prepare('DELETE FROM habits WHERE id = ?');
+            $stmt->bind_param('i', $habitId);
+            $stmt->execute();
+            $stmt->close();
+          }
+        }
+      }
+      header('Location: ' . $baseUrl . '?tab=habits'); exit;
     }
   }
 }
@@ -905,6 +1044,16 @@ $certs    = array();
 $heroImages = array();
 $articles = array();
 $storageFiles = array();
+$habits = array();
+$habitStreakState = array(
+  'current_streak' => 0,
+  'best_streak' => 0,
+  'freeze_balance' => 0,
+  'last_active_date' => '',
+);
+$habitTodayCompleted = 0;
+$habitTodayTarget = 1;
+$habitTodayTargetMet = 0;
 if ($loggedIn) {
     if ($tab === 'skills') {
         $r = db()->query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC');
@@ -934,6 +1083,24 @@ if ($loggedIn) {
     if ($tab === 'storage' && $storageTableExists) {
       $r = db()->query('SELECT * FROM admin_storage_files ORDER BY id DESC');
       if ($r) { while ($row = $r->fetch_assoc()) { $storageFiles[] = $row; } }
+    }
+    if ($tab === 'habits' && $habitsTableExists && $habitLogsTableExists && $streakTableExists) {
+      $r = db()->query('SELECT * FROM habits ORDER BY sort_order ASC, id ASC');
+      if ($r) { while ($row = $r->fetch_assoc()) { $habits[] = $row; } }
+
+      $habitStreakState = loadStreakStateFromDb();
+
+      $todayDate = date('Y-m-d');
+      $stmt = db()->prepare('SELECT COUNT(*) AS completed_count FROM habit_logs WHERE log_date = ? AND completed = 1');
+      $stmt->bind_param('s', $todayDate);
+      $stmt->execute();
+      $row = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+      $habitTodayCompleted = $row ? (int)$row['completed_count'] : 0;
+
+      $todayPreview = applyStreakRules($habitStreakState, $todayDate, $habitTodayCompleted);
+      $habitTodayTarget = (int)$todayPreview['target'];
+      $habitTodayTargetMet = (int)$todayPreview['target_met'];
     }
 }
 
@@ -986,6 +1153,7 @@ function pageUrl($page, $search, $base) {
     .btn-block   { width:100%; text-align:center; }
     .error-msg   { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#f87171; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
     .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+    .topbar-actions { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
     .topbar-brand { font-size:1.1rem; font-weight:700; color:var(--accent); }
     .topbar-brand span { color:var(--text); font-weight:400; }
     .tabs { display:flex; border-bottom:1px solid var(--border); background:var(--surface); padding:0 2rem; overflow-x:auto; }
@@ -1081,7 +1249,10 @@ function pageUrl($page, $search, $base) {
 <!-- ═══════════════════════════ DASHBOARD ════════════════════════════════════ -->
 <div class="topbar">
   <div class="topbar-brand">🛡️ Admin Panel <span>/ Abhay Portfolio</span></div>
-  <a href="?logout=1" class="btn btn-outline">Log Out</a>
+  <div class="topbar-actions">
+    <a href="index.php" class="btn btn-outline">Return to Main Page</a>
+    <a href="?logout=1" class="btn btn-outline">Log Out</a>
+  </div>
 </div>
 
 <div class="tabs">
@@ -1090,6 +1261,7 @@ function pageUrl($page, $search, $base) {
   <a href="?tab=skills"   class="tab-link <?php echo $tab==='skills'  ?'active':''; ?>">🔧 Skills</a>
   <a href="?tab=certs"    class="tab-link <?php echo $tab==='certs'   ?'active':''; ?>">� Certifications</a>
   <a href="?tab=projects" class="tab-link <?php echo $tab==='projects'?'active':''; ?>">🚀 Projects</a>
+  <a href="?tab=habits"   class="tab-link <?php echo $tab==='habits'  ?'active':''; ?>">📅 Habits</a>
   <a href="?tab=articles" class="tab-link <?php echo $tab==='articles'?'active':''; ?>">📝 Articles</a>
   <a href="?tab=storage"  class="tab-link <?php echo $tab==='storage' ?'active':''; ?>">🗂 Storage</a>
   <a href="?tab=embeds"   class="tab-link <?php echo $tab==='embeds'  ?'active':''; ?>">📌 Social Embeds</a>
@@ -1595,6 +1767,103 @@ function pageUrl($page, $search, $base) {
         </div>
       <?php endforeach; ?>
     </div>
+  <?php endif; ?>
+
+<!-- ═══════════════════════ HABITS TAB ═══════════════════════════════════════ -->
+<?php elseif ($tab === 'habits'): ?>
+
+  <?php if ($habitsError !== ''): ?>
+    <div class="error-msg"><?php echo e($habitsError); ?></div>
+  <?php else: ?>
+
+  <div class="panel" style="max-width:640px;">
+    <h3>🔥 Streak Status</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div style="padding:.75rem .9rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);">🔥 Current Streak: <strong><?php echo (int)$habitStreakState['current_streak']; ?></strong> days</div>
+      <div style="padding:.75rem .9rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);">🏆 Best Streak: <strong><?php echo (int)$habitStreakState['best_streak']; ?></strong> days</div>
+      <div style="padding:.75rem .9rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);">🧊 Freeze Balance: <strong><?php echo (int)$habitStreakState['freeze_balance']; ?></strong></div>
+      <div style="padding:.75rem .9rem;border:1px solid var(--border);border-radius:8px;background:var(--bg);">📅 Last Logged: <strong><?php echo $habitStreakState['last_active_date'] !== '' ? e($habitStreakState['last_active_date']) : '—'; ?></strong></div>
+    </div>
+    <div style="margin-top:.8rem;font-size:.82rem;color:var(--muted);">Today: <?php echo (int)$habitTodayCompleted; ?> done · Target <?php echo (int)$habitTodayTarget; ?> <?php echo ($habitTodayTargetMet === 1) ? '✅ MET' : '❌ NOT YET'; ?></div>
+    <div class="panel-actions" style="margin-top:1rem;">
+      <a href="log.php" class="btn btn-primary">📅 Log Today →</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>➕ Add Habit</h3>
+    <form method="POST">
+      <?php echo csrfField(); ?>
+      <div class="panel-grid">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" name="name" required maxlength="100" placeholder="e.g. LeetCode" />
+        </div>
+        <div class="form-group">
+          <label>Emoji</label>
+          <input type="text" name="emoji" maxlength="20" placeholder="e.g. 💻" />
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <input type="number" name="sort_order" value="0" />
+        </div>
+      </div>
+      <div class="panel-actions">
+        <button type="submit" name="add_habit" class="btn btn-primary">Add Habit</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="section-header">
+    <h2>Manage Habits <span style="color:var(--muted);font-weight:400;font-size:.9rem;">(<?php echo count($habits); ?>)</span></h2>
+  </div>
+
+  <?php if (empty($habits)): ?>
+    <div class="empty-state"><div class="icon">📅</div><p>No habits yet. Add your first habit above.</p></div>
+  <?php else: ?>
+    <div class="cards-grid">
+      <?php foreach ($habits as $h): ?>
+        <div class="item-card">
+          <div class="item-card-header">
+            <div class="item-card-icon"><?php echo e($h['emoji'] !== '' ? $h['emoji'] : '🧩'); ?></div>
+            <div>
+              <div class="item-card-title"><?php echo e($h['name']); ?></div>
+              <div style="font-size:.8rem;color:var(--muted);margin-top:.2rem;">Sort Order: <?php echo (int)$h['sort_order']; ?> · <?php echo ((int)$h['is_active'] === 1) ? 'Active' : 'Inactive'; ?></div>
+            </div>
+          </div>
+          <div class="item-card-footer">
+            <form method="POST" style="display:inline-block;">
+              <?php echo csrfField(); ?>
+              <input type="hidden" name="habit_id" value="<?php echo (int)$h['id']; ?>" />
+              <button type="submit" name="toggle_habit" class="btn <?php echo ((int)$h['is_active'] === 1) ? 'btn-warning' : 'btn-success'; ?>">
+                <?php echo ((int)$h['is_active'] === 1) ? 'Pause' : 'Activate'; ?>
+              </button>
+            </form>
+            <?php
+              $canDelete = true;
+              $stmtHabitCnt = db()->prepare('SELECT COUNT(*) AS cnt FROM habit_logs WHERE habit_id = ?');
+              $habitIdForCount = (int)$h['id'];
+              $stmtHabitCnt->bind_param('i', $habitIdForCount);
+              $stmtHabitCnt->execute();
+              $cntRow = $stmtHabitCnt->get_result()->fetch_assoc();
+              $stmtHabitCnt->close();
+              if ($cntRow && (int)$cntRow['cnt'] > 0) { $canDelete = false; }
+            ?>
+            <?php if ($canDelete): ?>
+              <form method="POST" style="display:inline-block;">
+                <?php echo csrfField(); ?>
+                <input type="hidden" name="habit_id" value="<?php echo (int)$h['id']; ?>" />
+                <button type="submit" name="delete_habit" class="btn btn-danger" onclick="return confirm('Delete habit: <?php echo e(addslashes($h['name'])); ?>?');">Delete</button>
+              </form>
+            <?php else: ?>
+              <button type="button" class="btn btn-outline" disabled title="Cannot delete because logs exist">Has Logs</button>
+            <?php endif; ?>
+          </div>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
   <?php endif; ?>
 
 <!-- ═══════════════════════ ARTICLES TAB ═════════════════════════════════════ -->

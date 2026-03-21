@@ -120,6 +120,59 @@ INSERT IGNORE INTO `site_settings` (`setting_key`, `setting_value`) VALUES
   ('article_section_title', 'Write-ups'),
   ('article_section_subtitle', 'Notes, thoughts, and security learning logs.');
 
+-- Habits definition table
+CREATE TABLE IF NOT EXISTS `habits` (
+  `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `name`       VARCHAR(100)  NOT NULL,
+  `emoji`      VARCHAR(20)   NOT NULL DEFAULT '',
+  `is_active`  TINYINT(1)    NOT NULL DEFAULT 1,
+  `sort_order` SMALLINT      NOT NULL DEFAULT 0,
+  `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Per-habit per-day completion log
+CREATE TABLE IF NOT EXISTS `habit_logs` (
+  `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `habit_id`   INT UNSIGNED  NOT NULL,
+  `log_date`   DATE          NOT NULL,
+  `completed`  TINYINT(1)    NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_habit_day` (`habit_id`, `log_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One note per day
+CREATE TABLE IF NOT EXISTS `daily_notes` (
+  `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+  `log_date`   DATE          NOT NULL,
+  `note`       TEXT          NOT NULL,
+  `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_date` (`log_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Streak state cache table
+CREATE TABLE IF NOT EXISTS `streak_state` (
+  `setting_key`   VARCHAR(80)  NOT NULL,
+  `setting_value` VARCHAR(500) NOT NULL DEFAULT '',
+  PRIMARY KEY (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seed streak defaults
+INSERT IGNORE INTO `streak_state` (`setting_key`, `setting_value`) VALUES
+  ('current_streak',  '0'),
+  ('best_streak',     '0'),
+  ('freeze_balance',  '0'),
+  ('last_active_date','');
+
+-- Seed default habits
+INSERT IGNORE INTO `habits` (`id`, `name`, `emoji`, `sort_order`) VALUES
+  (1, 'LeetCode',   '💻', 1),
+  (2, 'TryHackMe',  '🛡️', 2),
+  (3, 'Coursera',   '🎓', 3),
+  (4, 'Coding',     '⌨️', 4);
+
 -- ── Indexes for better query performance ──────────────────────────────────────
 -- MySQL/MariaDB will silently skip if the index already exists (CREATE INDEX IF NOT EXISTS
 -- is not available in all versions, so we use a safe procedure approach below).

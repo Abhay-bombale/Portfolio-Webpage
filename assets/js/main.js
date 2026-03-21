@@ -62,26 +62,51 @@ if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1' && !prefe
 var navbar     = document.querySelector('.navbar')
 var menuToggle = document.getElementById('menuToggle')
 var navLinks   = document.getElementById('navLinks')
+var navLinkItems = Array.prototype.slice.call(document.querySelectorAll('.nav-link'))
+
+function setMenuState(isOpen) {
+  if (!menuToggle || !navLinks) return
+  if (isOpen && navbar) {
+    // Ensure the fixed navbar is visible before expanding mobile links.
+    navbar.classList.remove('nav-hidden')
+  }
+  navLinks.classList.toggle('active', isOpen)
+  menuToggle.classList.toggle('open', isOpen)
+  menuToggle.setAttribute('aria-expanded', String(isOpen))
+  document.body.style.overflow = isOpen ? 'hidden' : ''
+}
+
+function closeMobileMenu() {
+  setMenuState(false)
+}
+
+function syncMobileNavViewportVars() {
+  if (!navbar) return
+  var navHeight = Math.round(navbar.getBoundingClientRect().height || 64)
+  var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  var available = Math.max(180, viewportHeight - navHeight)
+  document.documentElement.style.setProperty('--mobile-nav-offset', navHeight + 'px')
+  document.documentElement.style.setProperty('--mobile-menu-max-height', available + 'px')
+}
 
 // ─── Mobile Menu: open/close with hamburger → X animation ────────────────────
 if (menuToggle && navLinks) {
 
+  syncMobileNavViewportVars()
+
   // Toggle menu on hamburger click
   menuToggle.addEventListener('click', function() {
-    var isOpen = navLinks.classList.toggle('active')
-    menuToggle.classList.toggle('open', isOpen)
-    menuToggle.setAttribute('aria-expanded', String(isOpen))
-    // Lock body scroll while menu is open
-    document.body.style.overflow = isOpen ? 'hidden' : ''
+    var isOpen = !navLinks.classList.contains('active')
+    if (isOpen) {
+      syncMobileNavViewportVars()
+    }
+    setMenuState(isOpen)
   })
 
   // Close menu when any nav link is clicked
-  document.querySelectorAll('.nav-link').forEach(function(link) {
+  navLinkItems.forEach(function(link) {
     link.addEventListener('click', function() {
-      navLinks.classList.remove('active')
-      menuToggle.classList.remove('open')
-      menuToggle.setAttribute('aria-expanded', 'false')
-      document.body.style.overflow = ''
+      closeMobileMenu()
     })
   })
 
@@ -92,19 +117,64 @@ if (menuToggle && navLinks) {
       !navLinks.contains(e.target) &&
       !menuToggle.contains(e.target)
     ) {
-      navLinks.classList.remove('active')
-      menuToggle.classList.remove('open')
-      menuToggle.setAttribute('aria-expanded', 'false')
-      document.body.style.overflow = ''
+      closeMobileMenu()
     }
+  })
+
+  // Close menu with Escape for keyboard and assistive users
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && navLinks.classList.contains('active')) {
+      closeMobileMenu()
+      menuToggle.focus()
+    }
+  })
+
+  // Ensure state is reset when viewport changes to desktop width
+  window.addEventListener('resize', function() {
+    syncMobileNavViewportVars()
+    if (window.matchMedia('(min-width: 769px)').matches) {
+      closeMobileMenu()
+    }
+  })
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncMobileNavViewportVars)
+    window.visualViewport.addEventListener('scroll', syncMobileNavViewportVars)
+  }
+}
+
+// ─── Navbar scroll + active link (single rAF loop) ──────────────────────────
+var lastScrollY = window.scrollY
+var scrollTicking = false
+var pageSections = Array.prototype.slice.call(document.querySelectorAll('section[id]'))
+var hashNavLinks = navLinkItems.filter(function(link) {
+  return (link.getAttribute('href') || '').charAt(0) === '#'
+})
+
+function updateActiveNavLink() {
+  if (!hashNavLinks.length || !pageSections.length) return
+
+  var current = ''
+  var triggerY = window.scrollY + 220
+
+  pageSections.forEach(function(section) {
+    if (triggerY >= section.offsetTop) {
+      current = section.getAttribute('id') || ''
+    }
+  })
+
+  hashNavLinks.forEach(function(link) {
+    var isActive = (link.getAttribute('href') === '#' + current)
+    link.classList.toggle('active', isActive)
   })
 }
 
-// ─── Navbar scroll behaviours (glass blur + hide/show) ───────────────────────
-var lastScrollY = window.scrollY
-var ticking     = false
-
 function updateNavbar() {
+  if (!navbar) {
+    scrollTicking = false
+    return
+  }
+
   var currentScrollY = window.scrollY
 
   // Glass blur — activates after 20px
@@ -115,47 +185,31 @@ function updateNavbar() {
   }
 
   // Hide on scroll down, show on scroll up — only after 80px
-  if (currentScrollY > 80) {
+  if (navLinks && navLinks.classList.contains('active')) {
+    navbar.classList.remove('nav-hidden')
+  } else if (currentScrollY > 80) {
     if (currentScrollY > lastScrollY) {
       navbar.classList.add('nav-hidden')
-      // Auto-close mobile menu on hide
-      if (navLinks && navLinks.classList.contains('active')) {
-        navLinks.classList.remove('active')
-        menuToggle.classList.remove('open')
-        menuToggle.setAttribute('aria-expanded', 'false')
-        document.body.style.overflow = ''
-      }
     } else {
       navbar.classList.remove('nav-hidden')
     }
+  } else {
+    navbar.classList.remove('nav-hidden')
   }
 
+  updateActiveNavLink()
+
   lastScrollY = currentScrollY
-  ticking     = false
+  scrollTicking = false
 }
 
 window.addEventListener('scroll', function() {
-  if (!ticking) {
+  if (!scrollTicking) {
     window.requestAnimationFrame(updateNavbar)
-    ticking = true
+    scrollTicking = true
   }
 })
-
-// ─── Active nav link highlight on scroll ─────────────────────────────────────
-window.addEventListener('scroll', function() {
-  var current = ''
-  document.querySelectorAll('section[id]').forEach(function(section) {
-    if (window.scrollY >= section.offsetTop - 200) {
-      current = section.getAttribute('id')
-    }
-  })
-  document.querySelectorAll('.nav-link').forEach(function(link) {
-    link.classList.remove('active')
-    if (link.getAttribute('href') === '#' + current) {
-      link.classList.add('active')
-    }
-  })
-})
+updateNavbar()
 
 // ─── Contact Form — PHP/MySQL backend ────────────────────────────────────────
 var contactForm = document.getElementById('contactForm')
@@ -183,6 +237,7 @@ if (contactForm) {
     var originalText = submitBtn.textContent
 
     submitBtn.disabled    = true
+    submitBtn.setAttribute('aria-busy', 'true')
     submitBtn.textContent = 'Sending...'
     if (formStatus) formStatus.style.display = 'none'
 
@@ -205,6 +260,7 @@ if (contactForm) {
         setTimeout(function() {
           submitBtn.textContent           = originalText
           submitBtn.style.backgroundColor = ''
+          submitBtn.setAttribute('aria-busy', 'false')
           submitBtn.disabled              = false
         }, 3000)
         return
@@ -219,6 +275,7 @@ if (contactForm) {
         setTimeout(function() {
           submitBtn.textContent           = originalText
           submitBtn.style.backgroundColor = ''
+          submitBtn.setAttribute('aria-busy', 'false')
           submitBtn.disabled              = false
         }, 3000)
       } else {
@@ -229,6 +286,7 @@ if (contactForm) {
         setTimeout(function() {
           submitBtn.textContent           = originalText
           submitBtn.style.backgroundColor = ''
+          submitBtn.setAttribute('aria-busy', 'false')
           submitBtn.disabled              = false
         }, 3000)
       }
@@ -241,6 +299,7 @@ if (contactForm) {
       setTimeout(function() {
         submitBtn.textContent           = originalText
         submitBtn.style.backgroundColor = ''
+        submitBtn.setAttribute('aria-busy', 'false')
         submitBtn.disabled              = false
       }, 3000)
     }
@@ -322,6 +381,61 @@ if (!prefersReducedMotion) {
       revealObserver.observe(el)
     })
   }
+}
+
+// ─── Heatmap cell click → show note panel ────────────────────────────────────
+var heatmapGrid   = document.getElementById('heatmapGrid')
+var notePanel     = document.getElementById('activityNotePanel')
+var noteDate      = document.getElementById('activityNoteDate')
+var noteText      = document.getElementById('activityNoteText')
+var noteMeta      = document.getElementById('activityNoteMeta')
+var activeCell    = null
+
+if (heatmapGrid && notePanel) {
+  heatmapGrid.addEventListener('click', function(e) {
+    var cell = e.target
+    if (!cell.classList.contains('heatmap-cell')) return
+
+    var date = cell.getAttribute('data-date')
+    var count = parseInt(cell.getAttribute('data-count') || '0', 10)
+
+    if (activeCell === cell) {
+      notePanel.style.display = 'none'
+      activeCell = null
+      return
+    }
+
+    activeCell = cell
+
+    var parts = date.split('-')
+    var dateObj = new Date(parts[0], parts[1] - 1, parts[2])
+    var options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+    var dateStr = dateObj.toLocaleDateString('en-US', options)
+
+    noteDate.textContent = dateStr
+
+    var notes = (typeof window.habitNotes !== 'undefined') ? window.habitNotes : {}
+    if (notes[date] && notes[date].note) {
+      noteText.textContent = notes[date].note
+      noteText.classList.remove('empty')
+      var loggedAt = notes[date].created_at ? ('Logged: ' + notes[date].created_at) : ''
+      var editedAt = (notes[date].updated_at && notes[date].updated_at !== notes[date].created_at)
+        ? (' · Edited: ' + notes[date].updated_at)
+        : ''
+      noteMeta.textContent = loggedAt + editedAt
+    } else if (count > 0) {
+      noteText.textContent = 'No note logged for this day.'
+      noteText.classList.add('empty')
+      noteMeta.textContent = count + ' habit' + (count > 1 ? 's' : '') + ' completed'
+    } else {
+      noteText.textContent = 'No activity on this day.'
+      noteText.classList.add('empty')
+      noteMeta.textContent = ''
+    }
+
+    notePanel.style.display = 'block'
+    notePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
 }
 
 }) // end DOMContentLoaded
