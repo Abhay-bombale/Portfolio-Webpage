@@ -73,6 +73,7 @@ function setMenuState(isOpen) {
   navLinks.classList.toggle('active', isOpen)
   menuToggle.classList.toggle('open', isOpen)
   menuToggle.setAttribute('aria-expanded', String(isOpen))
+  document.documentElement.classList.toggle('menu-open', isOpen)
   document.body.style.overflow = isOpen ? 'hidden' : ''
 }
 
@@ -83,10 +84,13 @@ function closeMobileMenu() {
 function syncMobileNavViewportVars() {
   if (!navbar) return
   var navHeight = Math.round(navbar.getBoundingClientRect().height || 64)
-  var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  var viewportHeight = window.visualViewport
+    ? Math.round(window.visualViewport.height)
+    : (window.innerHeight || document.documentElement.clientHeight || 0)
   var available = Math.max(180, viewportHeight - navHeight)
   document.documentElement.style.setProperty('--mobile-nav-offset', navHeight + 'px')
   document.documentElement.style.setProperty('--mobile-menu-max-height', available + 'px')
+  document.documentElement.style.setProperty('--viewport-height', viewportHeight + 'px')
 }
 
 // ─── Mobile Menu: open/close with hamburger → X animation ────────────────────
@@ -135,6 +139,15 @@ if (menuToggle && navLinks) {
     if (window.matchMedia('(min-width: 769px)').matches) {
       closeMobileMenu()
     }
+  })
+
+  window.addEventListener('orientationchange', function() {
+    window.setTimeout(function() {
+      syncMobileNavViewportVars()
+      if (window.matchMedia('(min-width: 769px)').matches) {
+        closeMobileMenu()
+      }
+    }, 150)
   })
 
   if (window.visualViewport) {
@@ -322,30 +335,6 @@ if (messageField && charCount) {
   updateCharCount()
 }
 
-// ─── Dark mode toggle ────────────────────────────────────────────────────────
-var themeToggle = document.getElementById('themeToggle')
-var root        = document.documentElement
-
-function getPreferredTheme() {
-  var saved = localStorage.getItem('theme')
-  if (saved) return saved
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
-function applyTheme(theme) {
-  root.setAttribute('data-theme', theme)
-  localStorage.setItem('theme', theme)
-}
-
-applyTheme(getPreferredTheme())
-
-if (themeToggle) {
-  themeToggle.addEventListener('click', function() {
-    var current = root.getAttribute('data-theme') || 'light'
-    applyTheme(current === 'dark' ? 'light' : 'dark')
-  })
-}
-
 // ─── Back to Top button ──────────────────────────────────────────────────────
 var backToTop = document.getElementById('backToTop')
 
@@ -436,6 +425,41 @@ if (heatmapGrid && notePanel) {
     notePanel.style.display = 'block'
     notePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   })
+}
+
+// ─── Heatmap month labels — positioned above correct week columns ─────────────
+var heatmapGrid2  = document.getElementById('heatmapGrid')
+var monthLabelsEl = document.getElementById('heatmapMonthLabels')
+
+if (heatmapGrid2 && monthLabelsEl) {
+  var monthShortNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+  function renderHeatmapMonthLabels() {
+    monthLabelsEl.innerHTML = ''
+    var cells = heatmapGrid2.querySelectorAll('.heatmap-cell:not(.heatmap-spacer)')
+    var lastMonth = -1
+    var wrapLeft = monthLabelsEl.getBoundingClientRect().left
+
+    cells.forEach(function(cell) {
+      var date = cell.getAttribute('data-date')
+      if (!date) return
+      var parts = date.split('-')
+      var month = parseInt(parts[1], 10)
+
+      if (month !== lastMonth) {
+        lastMonth = month
+        var cellLeft = cell.getBoundingClientRect().left - wrapLeft
+        var label = document.createElement('span')
+        label.className = 'heatmap-month-label'
+        label.textContent = monthShortNames[month - 1]
+        label.style.left = cellLeft + 'px'
+        monthLabelsEl.appendChild(label)
+      }
+    })
+  }
+
+  setTimeout(renderHeatmapMonthLabels, 80)
+  window.addEventListener('resize', renderHeatmapMonthLabels)
 }
 
 }) // end DOMContentLoaded

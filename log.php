@@ -31,16 +31,18 @@ function applyStreakRules($state, $logDate, $completedCount) {
         }
         if ((int)$completedCount >= 3) {
             $freezeBalance += 1;
+        $feedbackType = 'earned';
+        $feedbackText = 'Target met. Freeze earned for 3+ completions.';
         }
         $lastActiveDate = $logDate;
     } else {
         if ($freezeBalance > 0) {
             $freezeBalance -= 1;
-            $feedbackType = 'info';
+        $feedbackType = 'freeze';
             $feedbackText = '🧊 Freeze used. Streak protected.';
         } else {
             $currentStreak = 0;
-            $feedbackType = 'danger';
+        $feedbackType = 'reset';
             $feedbackText = '💔 Streak reset. Target not met.';
         }
     }
@@ -121,7 +123,7 @@ if (!$hasHabitsTable || !$hasHabitLogsTable || !$hasDailyNotesTable || !$hasStre
 
 if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_habits') {
     if (!verifyCsrf()) {
-        $_SESSION['log_feedback'] = array('type' => 'danger', 'text' => 'Invalid request token. Please try again.');
+    $_SESSION['log_flash'] = array('type' => 'reset', 'text' => 'Invalid request token. Please try again.');
         header('Location: log.php');
         exit;
     }
@@ -162,14 +164,14 @@ if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[
     }
     $stateSaveStmt->close();
 
-    $_SESSION['log_feedback'] = array('type' => $result['feedback_type'], 'text' => $result['feedback_text']);
+    $_SESSION['log_flash'] = array('type' => $result['feedback_type'], 'text' => $result['feedback_text']);
     header('Location: log.php?saved=1#note');
     exit;
 }
 
 if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_note') {
     if (!verifyCsrf()) {
-        $_SESSION['log_feedback'] = array('type' => 'danger', 'text' => 'Invalid request token. Please try again.');
+    $_SESSION['log_flash'] = array('type' => 'reset', 'text' => 'Invalid request token. Please try again.');
         header('Location: log.php#note');
         exit;
     }
@@ -185,8 +187,8 @@ if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[
     $stmt->execute();
     $stmt->close();
 
-    $_SESSION['log_feedback'] = array('type' => 'success', 'text' => 'Today\'s note saved.');
-    header('Location: log.php#note');
+    $_SESSION['log_flash'] = array('type' => 'success', 'text' => 'Today\'s note saved.');
+    header('Location: log.php?noted=1');
     exit;
 }
 
@@ -232,9 +234,9 @@ $target = habitTargetForDate($today);
 $targetMet = ($completedToday >= $target);
 
 $feedback = null;
-if (isset($_SESSION['log_feedback'])) {
-    $feedback = $_SESSION['log_feedback'];
-    unset($_SESSION['log_feedback']);
+if (isset($_SESSION['log_flash'])) {
+  $feedback = $_SESSION['log_flash'];
+  unset($_SESSION['log_flash']);
 }
 ?>
 <!doctype html>
@@ -245,59 +247,224 @@ if (isset($_SESSION['log_feedback'])) {
   <title>Log - <?php echo e($todayLong); ?></title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
-    body { background: var(--bg-gray); }
-    .log-wrap { max-width: 760px; margin: 0 auto; padding: 1rem 1rem 3rem 1rem; }
-    .log-topbar { display:flex; justify-content:space-between; align-items:center; gap:.75rem; margin-bottom:1rem; }
-    .log-card { background: var(--bg-light); border:1px solid var(--border-color); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow-sm); margin-bottom: 1rem; }
-    .log-title { margin: 0; font-size: 1.35rem; color: var(--text-dark); }
-    .streak-bar { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:.75rem; }
-    .streak-pill { background: var(--bg-gray); border:1px solid var(--border-color); border-radius: 999px; padding:.45rem .8rem; font-size:.88rem; color: var(--text-dark); }
-    .feedback { border-radius:999px; padding:.55rem .9rem; font-size:.85rem; font-weight:600; display:inline-block; margin-top:.75rem; }
-    .feedback.success { background: rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.3); color:#047857; }
-    .feedback.danger { background: rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#b91c1c; }
-    .feedback.info { background: rgba(59,130,246,.12); border:1px solid rgba(59,130,246,.3); color:#1d4ed8; }
-    .log-habit-row { display:flex; align-items:center; gap:1rem; padding:.9rem 1rem; border:1px solid var(--border-color); border-radius:8px; margin-bottom:.5rem; cursor:pointer; transition:background-color .15s ease; min-height:44px; }
-    .log-habit-row:hover { background-color: var(--bg-gray); }
-    .log-habit-row input[type="checkbox"] { width:20px; height:20px; cursor:pointer; flex-shrink:0; }
-    .log-progress { margin-top: .75rem; font-size: .9rem; color: var(--text-dark); }
-    .log-progress .ok { color: #047857; font-weight: 600; }
-    .log-progress .no { color: #b91c1c; font-weight: 600; }
-    .log-divider { border-top: 1px dashed var(--border-color); margin: 1rem 0; }
-    .log-textarea { width:100%; min-height:130px; border:1px solid var(--border-color); border-radius:8px; padding:.75rem; font-family:inherit; font-size:.95rem; color:var(--text-dark); background:var(--bg-light); resize:vertical; }
-    .log-note-meta { margin-top:.55rem; color:var(--text-light); font-size:.78rem; }
-    .log-actions { margin-top:.8rem; display:flex; gap:.6rem; flex-wrap:wrap; }
-    .log-error { background: rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#b91c1c; border-radius:8px; padding:.8rem .95rem; }
+    body {
+      background: #0a0a0f;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      color: #a0a0b8;
+      padding: 0;
+      margin: 0;
+    }
+    .log-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+    .log-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .log-back {
+      color: #00d4ff;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .log-card {
+      background: #1c1c24;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .log-title {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #f0f0f5;
+    }
+    .log-streak-bar {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: space-around;
+      margin-top: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .log-streak-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.2rem;
+    }
+    .log-streak-val {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f0f0f5;
+      line-height: 1;
+    }
+    .log-streak-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #5a5a78;
+    }
+    .log-progress-track {
+      height: 4px;
+      background: #2a2a35;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .log-progress-fill {
+      height: 100%;
+      background: #ff6b2b;
+      border-radius: 2px;
+      -webkit-transition: width 0.4s ease;
+      transition: width 0.4s ease;
+    }
+    .log-progress {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #a0a0b8;
+    }
+    .log-progress .ok { color: #22c55e; font-weight: 600; }
+    .log-progress .no { color: #ef4444; font-weight: 600; }
+    .log-habit-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #22222e;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      min-height: 52px;
+      -webkit-transition: border-color 0.2s ease, background 0.2s ease;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .log-habit-row.checked {
+      border-color: rgba(255, 107, 43, 0.4);
+      background: rgba(255, 107, 43, 0.06);
+    }
+    .log-habit-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: #ff6b2b;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .log-habit-emoji { font-size: 1.4rem; }
+    .log-habit-name  { font-size: 1rem; color: #f0f0f5; font-weight: 500; }
+    .log-divider {
+      border-top: 1px dashed rgba(255,255,255,0.12);
+      margin: 1rem 0;
+    }
+    .log-note-textarea {
+      width: 100%;
+      background: #22222e;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 0.9rem;
+      color: #f0f0f5;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 100px;
+      font-family: inherit;
+      -webkit-transition: border-color 0.2s ease;
+      transition: border-color 0.2s ease;
+    }
+    .log-note-textarea:focus {
+      outline: none;
+      border-color: rgba(255, 107, 43, 0.4);
+    }
+    .log-note-meta {
+      margin-top: 0.55rem;
+      color: #5a5a78;
+      font-size: 0.78rem;
+    }
+    .log-actions { margin-top: 0.8rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .log-btn-save {
+      width: 100%;
+      padding: 0.9rem;
+      background: #ff6b2b;
+      color: #0a0a0f;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      -webkit-transition: background 0.2s ease, box-shadow 0.2s ease;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+      margin-top: 0.75rem;
+    }
+    .log-btn-save:hover {
+      background: #e8652a;
+      box-shadow: 0 0 24px rgba(255, 107, 43, 0.4);
+    }
+    .log-feedback {
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .log-feedback.success { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+    .log-feedback.freeze  { background: rgba(0,212,255,0.08); color: #00d4ff; border: 1px solid rgba(0,212,255,0.15); }
+    .log-feedback.reset   { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.15); }
+    .log-feedback.earned  { background: rgba(255,107,43,0.1); color: #ff6b2b; border: 1px solid rgba(255,107,43,0.2); }
+    .log-error {
+      background: rgba(239,68,68,.12);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #ef4444;
+      border-radius: 8px;
+      padding: .8rem .95rem;
+    }
     @media (max-width: 640px) {
       .log-wrap { padding: .85rem .75rem 2rem .75rem; }
       .log-title { font-size: 1.15rem; }
-      .streak-pill { font-size:.8rem; }
+      .log-streak-bar { gap: 0.75rem; }
+      .log-streak-val { font-size: 1.6rem; }
     }
   </style>
 </head>
 <body>
   <div class="log-wrap">
     <div class="log-topbar">
-      <a href="index.php" class="logo" style="font-size:1.1rem;">Abhay</a>
-      <a href="admin.php?tab=habits" class="btn btn-secondary">&larr; Admin</a>
+      <a href="admin.php" class="log-back">&larr; Back to Admin</a>
     </div>
 
     <div class="log-card">
-      <h1 class="log-title">📅 Log - <?php echo e($todayLong); ?></h1>
-
-      <div class="streak-bar">
-        <div class="streak-pill">🔥 <?php echo (int)$streakState['current_streak']; ?> days</div>
-        <div class="streak-pill">🏆 Best: <?php echo (int)$streakState['best_streak']; ?></div>
-        <div class="streak-pill">🧊 Freezes: <?php echo (int)$streakState['freeze_balance']; ?></div>
-      </div>
+      <h1 class="log-title">📅 <?php echo e($todayLong); ?></h1>
 
       <?php if ($feedback): ?>
-        <div class="feedback <?php echo e(isset($feedback['type']) ? $feedback['type'] : 'info'); ?>">
+        <div class="log-feedback <?php echo e(isset($feedback['type']) ? $feedback['type'] : 'success'); ?>">
           <?php echo e(isset($feedback['text']) ? $feedback['text'] : 'Saved.'); ?>
         </div>
       <?php endif; ?>
+
+      <div class="log-streak-bar">
+        <div class="log-streak-item">
+          <span class="log-streak-val"><?php echo (int)$streakState['current_streak']; ?></span>
+          <span class="log-streak-label">Current</span>
+        </div>
+        <div class="log-streak-item">
+          <span class="log-streak-val"><?php echo (int)$streakState['best_streak']; ?></span>
+          <span class="log-streak-label">Best</span>
+        </div>
+        <div class="log-streak-item">
+          <span class="log-streak-val"><?php echo (int)$streakState['freeze_balance']; ?></span>
+          <span class="log-streak-label">Freezes</span>
+        </div>
+      </div>
+
+      <?php $progressPercent = ($target > 0) ? min(100, max(0, (int)round(($completedToday / $target) * 100))) : 0; ?>
+      <div class="log-progress-track"><div class="log-progress-fill" style="width:<?php echo (int)$progressPercent; ?>%;"></div></div>
     </div>
 
     <?php if ($tableError !== ''): ?>
@@ -315,8 +482,8 @@ if (isset($_SESSION['log_feedback'])) {
               <?php $hid = (int)$h['id']; ?>
               <label class="log-habit-row" for="habit_<?php echo $hid; ?>">
                 <input id="habit_<?php echo $hid; ?>" type="checkbox" name="habit_<?php echo $hid; ?>" value="1" <?php echo (isset($todayLogMap[$hid]) && (int)$todayLogMap[$hid] === 1) ? 'checked' : ''; ?> />
-                <span style="font-size:1.1rem;"><?php echo e($h['emoji'] !== '' ? $h['emoji'] : '✅'); ?></span>
-                <span style="font-weight:600;color:var(--text-dark);"><?php echo e($h['name']); ?></span>
+                <span class="log-habit-emoji"><?php echo e($h['emoji'] !== '' ? $h['emoji'] : '✅'); ?></span>
+                <span class="log-habit-name"><?php echo e($h['name']); ?></span>
               </label>
             <?php endforeach; ?>
           <?php endif; ?>
@@ -331,7 +498,7 @@ if (isset($_SESSION['log_feedback'])) {
           </div>
 
           <div class="log-actions">
-            <button type="submit" class="btn btn-primary">Save Habits</button>
+            <button type="submit" class="log-btn-save">Save Habits</button>
           </div>
         </form>
 
@@ -342,7 +509,7 @@ if (isset($_SESSION['log_feedback'])) {
         <form method="POST">
           <?php echo csrfField(); ?>
           <input type="hidden" name="action" value="save_note" />
-          <textarea class="log-textarea" name="note" maxlength="1000" placeholder="What did you commit today?"><?php echo e(isset($todayNote['note']) ? $todayNote['note'] : ''); ?></textarea>
+          <textarea class="log-note-textarea" name="note" maxlength="1000" placeholder="What did you commit today?"><?php echo e(isset($todayNote['note']) ? $todayNote['note'] : ''); ?></textarea>
           <?php if (!empty($todayNote['created_at'])): ?>
             <div class="log-note-meta">
               Logged at <?php echo e(date('M j, Y g:i A', strtotime($todayNote['created_at']))); ?>
@@ -352,13 +519,29 @@ if (isset($_SESSION['log_feedback'])) {
             </div>
           <?php endif; ?>
           <div class="log-actions">
-            <button type="submit" class="btn btn-primary">Save Note</button>
+            <button type="submit" class="log-btn-save">Save Note</button>
           </div>
         </form>
       </div>
 
-      <a href="admin.php?tab=habits" class="btn btn-secondary">&larr; Back to Admin Panel</a>
+      <a href="admin.php?tab=habits" class="log-back">&larr; Back to Admin Panel</a>
     <?php endif; ?>
   </div>
+  <script>
+  document.querySelectorAll('.log-habit-row').forEach(function(row) {
+    var cb = row.querySelector('input[type="checkbox"]')
+    if (cb && cb.checked) row.classList.add('checked')
+    row.addEventListener('click', function(e) {
+      e.preventDefault()
+      if (cb) {
+        cb.checked = !cb.checked
+        row.classList.toggle('checked', cb.checked)
+      }
+    })
+    if (cb) {
+      cb.addEventListener('click', function(e) { e.stopPropagation() })
+    }
+  })
+  </script>
 </body>
 </html>

@@ -116,7 +116,8 @@ if (!$_conn->connect_error) {
         'SELECT hl.log_date, COUNT(*) AS completed_count
          FROM habit_logs hl
          WHERE hl.completed = 1
-           AND hl.log_date >= DATE_SUB(CURDATE(), INTERVAL 76 DAY)
+           AND hl.log_date >= DATE_FORMAT(CURDATE(), "%Y-01-01")
+           AND hl.log_date <= CURDATE()
          GROUP BY hl.log_date'
       );
       if ($r) {
@@ -129,8 +130,10 @@ if (!$_conn->connect_error) {
       $r = $_conn->query(
         'SELECT log_date, note, created_at, updated_at
          FROM daily_notes
+         WHERE log_date >= DATE_FORMAT(CURDATE(), "%Y-01-01")
+           AND log_date <= CURDATE()
          ORDER BY log_date DESC
-         LIMIT 5'
+         LIMIT 366'
       );
       if ($r) {
         while ($row = $r->fetch_assoc()) {
@@ -175,7 +178,7 @@ $_cvExists = ($_cvRelPath !== null);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light dark" />
+  <meta name="color-scheme" content="dark" />
   <title>Abhay | Student & Aspiring Cybersecurity Analyst</title>
   <meta name="description" content="Abhay Bombale's personal portfolio showcasing cybersecurity skills and projects." />
   <link rel="canonical" href="https://yourwebsite.com/" />
@@ -204,7 +207,7 @@ $_cvExists = ($_cvRelPath !== null);
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="icon" type="image/png" href="assets/images/favicon.png" />
   <style>
@@ -218,6 +221,7 @@ $_cvExists = ($_cvRelPath !== null);
       flex-wrap: wrap;
       gap: 2rem;
       justify-content: center;
+      align-items: stretch;
     }
     .embed-item {
       display: flex;
@@ -226,6 +230,7 @@ $_cvExists = ($_cvRelPath !== null);
       gap: 0.75rem;
       max-width: 520px;
       width: 100%;
+      min-width: 0;
     }
     .embed-label {
       font-size: 0.85rem;
@@ -241,8 +246,24 @@ $_cvExists = ($_cvRelPath !== null);
       box-shadow: var(--shadow-md);
       display: block;
     }
+    .embed-item iframe,
+    .embed-item blockquote,
+    .embed-item .twitter-tweet {
+      max-width: 100% !important;
+    }
     .embed-item > * {
       max-width: 100%;
+    }
+    @media (max-width: 768px) {
+      .social-feed .container {
+        padding: 0 1rem;
+      }
+      .embeds-grid {
+        gap: 1.25rem;
+      }
+      .embed-item {
+        max-width: 100%;
+      }
     }
     /* ── LinkedIn profile card (replaces broken SDK badge) ──────────────── */
     .li-profile-card {
@@ -326,7 +347,6 @@ $_cvExists = ($_cvRelPath !== null);
           <li><a href="#skills"   class="nav-link">Skills</a></li>
           <li><a href="certifications.php" class="nav-link">Certs</a></li>
           <li><a href="#projects" class="nav-link">Projects</a></li>
-          <li><a href="#activity" class="nav-link">Activity</a></li>
           <?php if (!empty($_articles)): ?>
           <li><a href="#articles" class="nav-link">Write-ups</a></li>
           <?php endif; ?>
@@ -334,12 +354,6 @@ $_cvExists = ($_cvRelPath !== null);
           <li><a href="#social"   class="nav-link">Posts</a></li>
           <?php endif; ?>
           <li><a href="#contact"  class="nav-link">Contact</a></li>
-          <li>
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-              <span class="theme-icon-light">☀️</span>
-              <span class="theme-icon-dark">🌙</span>
-            </button>
-          </li>
         </ul>
       </div>
     </div>
@@ -394,33 +408,144 @@ $_cvExists = ($_cvRelPath !== null);
   <!-- About Section -->
   <section id="about" class="about">
     <div class="container">
-      <h2>About Me</h2>
-      <div class="about-content">
-        <div class="about-text">
-          <p>
-            I am an aspiring cybersecurity professional focused on vulnerability research and defensive
-            security. I am driven by understanding how systems are compromised and applying that knowledge
-            to design stronger security defences that protect organizations and their users.
-          </p>
-          <p>
-            I bring strong problem-solving ability, disciplined time management, and Python programming
-            skills to security challenges. I approach cybersecurity with an adversarial mindset while
-            maintaining professional responsibility and adherence to legal and ethical standards.
-          </p>
-          <p>
-            My goal is to help organizations reduce risk, prevent data breaches, and maintain secure
-            operations by continuously learning emerging threats and implementing practical, defense-focused
-            security solutions.
-          </p>
-          <a href="certifications.php" class="btn btn-secondary" style="margin-top:1rem;display:inline-block;">View My Certifications →</a>
+      <div class="about-grid">
+
+        <div class="about-left">
+          <span class="section-label">// about</span>
+          <h2>About Me</h2>
+          <div class="about-text">
+            <p>
+              I am an aspiring cybersecurity professional focused on vulnerability research and defensive
+              security. I am driven by understanding how systems are compromised and applying that knowledge
+              to design stronger security defences that protect organizations and their users.
+            </p>
+            <p>
+              I bring strong problem-solving ability, disciplined time management, and Python programming
+              skills to security challenges. I approach cybersecurity with an adversarial mindset while
+              maintaining professional responsibility and adherence to legal and ethical standards.
+            </p>
+            <p>
+              My goal is to help organizations reduce risk, prevent data breaches, and maintain secure
+              operations by continuously learning emerging threats and implementing practical, defense-focused
+              security solutions.
+            </p>
+            <a href="certifications.php" class="btn btn-secondary" style="margin-top:1rem;display:inline-block;">View My Certifications →</a>
+          </div>
         </div>
+
+        <div class="about-right" id="activity">
+          <span class="section-label">// activity</span>
+          <h2>Daily Log</h2>
+          <p class="activity-subtitle">Logged daily. Click any cell to read what I worked on.</p>
+
+          <div class="activity-stats">
+            <div class="activity-stat-card">
+              <span class="activity-stat-icon">🔥</span>
+              <span class="activity-stat-value"><?php echo (int)$_habitData['current_streak']; ?></span>
+              <span class="activity-stat-label">Day Streak</span>
+            </div>
+            <div class="activity-stat-card">
+              <span class="activity-stat-icon">🏆</span>
+              <span class="activity-stat-value"><?php echo (int)$_habitData['best_streak']; ?></span>
+              <span class="activity-stat-label">Best Streak</span>
+            </div>
+            <div class="activity-stat-card">
+              <span class="activity-stat-icon">🧊</span>
+              <span class="activity-stat-value"><?php echo (int)$_habitData['freeze_balance']; ?></span>
+              <span class="activity-stat-label">Freezes Saved</span>
+            </div>
+          </div>
+
+          <div class="heatmap-wrap">
+            <div class="heatmap-month-labels" id="heatmapMonthLabels"></div>
+            <div class="heatmap-body">
+              <div class="heatmap-day-labels">
+                <span>Mon</span>
+                <span></span>
+                <span>Wed</span>
+                <span></span>
+                <span>Fri</span>
+                <span></span>
+                <span></span>
+              </div>
+              <div class="heatmap-grid" id="heatmapGrid">
+                <?php
+                $today = date('Y-m-d');
+                $year = (int)date('Y');
+                $startDate = $year . '-01-01';
+                $endDate = $year . '-12-31';
+                $startDow = (int)date('N', strtotime($startDate)) - 1;
+                $totalDays = (int)floor((strtotime($endDate) - strtotime($startDate)) / 86400);
+
+                for ($s = 0; $s < $startDow; $s++) {
+                  echo '<div class="heatmap-cell heatmap-spacer"></div>';
+                }
+
+                for ($i = 0; $i <= $totalDays; $i++) {
+                  $date = date('Y-m-d', strtotime($startDate . ' +' . $i . ' days'));
+                  $count = isset($_habitData['heatmap'][$date]) ? (int)$_habitData['heatmap'][$date] : 0;
+                  $level = 0;
+                  if ($count === 1) { $level = 1; }
+                  elseif ($count === 2) { $level = 2; }
+                  elseif ($count === 3) { $level = 3; }
+                  elseif ($count >= 4) { $level = 4; }
+                  $isToday = ($date === $today) ? ' heatmap-today' : '';
+                  $tip = $count > 0
+                    ? date('M j, Y', strtotime($date)) . ': ' . $count . ' habit' . ($count > 1 ? 's' : '')
+                    : date('M j, Y', strtotime($date)) . ': no activity';
+                  echo '<div class="heatmap-cell level-' . $level . $isToday . '"'
+                    . ' data-date="' . eh($date) . '"'
+                    . ' data-count="' . $count . '"'
+                    . ' data-future="' . (($date > $today) ? '1' : '0') . '"'
+                    . ' title="' . eh($tip) . '"'
+                    . '></div>';
+                }
+                ?>
+              </div>
+            </div>
+            <div class="heatmap-legend">
+              <span class="heatmap-legend-left">Learn how we count contributions</span>
+              <div class="heatmap-legend-right">
+                <span>Less</span>
+                <div class="heatmap-cell level-0"></div>
+                <div class="heatmap-cell level-1"></div>
+                <div class="heatmap-cell level-2"></div>
+                <div class="heatmap-cell level-3"></div>
+                <div class="heatmap-cell level-4"></div>
+                <span>More</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="activity-note-panel" id="activityNotePanel" style="display:none;">
+            <div class="activity-note-date" id="activityNoteDate"></div>
+            <div class="activity-note-text" id="activityNoteText"></div>
+            <div class="activity-note-meta" id="activityNoteMeta"></div>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
 
+  <script>
+  window.habitNotes = <?php
+    $map = array();
+    foreach ($_habitData['recent_notes'] as $n) {
+      $map[$n['log_date']] = array(
+        'note'       => $n['note'],
+        'created_at' => date('M j, Y g:i A', strtotime($n['created_at'])),
+        'updated_at' => date('M j, Y g:i A', strtotime($n['updated_at'])),
+      );
+    }
+    echo json_encode($map);
+  ?>;
+  </script>
+
   <!-- Skills Section -->
   <section id="skills" class="skills">
     <div class="container">
+      <span class="section-label">// skills</span>
       <h2>Skills</h2>
       <div class="skills-grid">
         <?php if (empty($_skills)): ?>
@@ -441,6 +566,7 @@ $_cvExists = ($_cvRelPath !== null);
   <!-- Projects Section -->
   <section id="projects" class="projects">
     <div class="container">
+      <span class="section-label">// projects</span>
       <h2>Projects</h2>
       <div class="projects-grid">
         <?php if (empty($_projects)): ?>
@@ -471,80 +597,6 @@ $_cvExists = ($_cvRelPath !== null);
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
-    </div>
-  </section>
-
-  <!-- Activity Section -->
-  <section id="activity" class="activity-section">
-    <div class="container">
-      <h2>Activity</h2>
-      <p class="activity-subtitle">Daily learning log - updated by me, every day.</p>
-
-      <div class="activity-stats">
-        <div class="activity-stat-card">
-          <span class="activity-stat-icon">🔥</span>
-          <span class="activity-stat-value"><?php echo (int)$_habitData['current_streak']; ?></span>
-          <span class="activity-stat-label">Day Streak</span>
-        </div>
-        <div class="activity-stat-card">
-          <span class="activity-stat-icon">🏆</span>
-          <span class="activity-stat-value"><?php echo (int)$_habitData['best_streak']; ?></span>
-          <span class="activity-stat-label">Best Streak</span>
-        </div>
-        <div class="activity-stat-card">
-          <span class="activity-stat-icon">🧊</span>
-          <span class="activity-stat-value"><?php echo (int)$_habitData['freeze_balance']; ?></span>
-          <span class="activity-stat-label">Freezes Saved</span>
-        </div>
-      </div>
-
-      <div class="heatmap-wrap">
-        <div class="heatmap-grid" id="heatmapGrid">
-          <?php
-          for ($i = 76; $i >= 0; $i--) {
-            $date = date('Y-m-d', strtotime('-' . $i . ' days'));
-            $count = isset($_habitData['heatmap'][$date]) ? (int)$_habitData['heatmap'][$date] : 0;
-            $level = 0;
-            if ($count === 1) { $level = 1; }
-            elseif ($count === 2) { $level = 2; }
-            elseif ($count === 3) { $level = 3; }
-            elseif ($count >= 4) { $level = 4; }
-            $label = date('M j, Y', strtotime($date));
-            $tooltip = $count > 0 ? ($label . ': ' . $count . ' habit' . ($count > 1 ? 's' : '')) : ($label . ': No activity');
-            echo '<div class="heatmap-cell level-' . $level . '" data-date="' . eh($date) . '" data-count="' . $count . '" title="' . eh($tooltip) . '"></div>';
-          }
-          ?>
-        </div>
-        <div class="heatmap-legend">
-          <span>Less</span>
-          <div class="heatmap-cell level-0"></div>
-          <div class="heatmap-cell level-1"></div>
-          <div class="heatmap-cell level-2"></div>
-          <div class="heatmap-cell level-3"></div>
-          <div class="heatmap-cell level-4"></div>
-          <span>More</span>
-        </div>
-      </div>
-
-      <div class="activity-note-panel" id="activityNotePanel" style="display:none;">
-        <div class="activity-note-date" id="activityNoteDate"></div>
-        <div class="activity-note-text" id="activityNoteText"></div>
-        <div class="activity-note-meta" id="activityNoteMeta"></div>
-      </div>
-
-      <script>
-      window.habitNotes = <?php
-        $notesMap = array();
-        foreach ($_habitData['recent_notes'] as $n) {
-          $notesMap[$n['log_date']] = array(
-            'note' => $n['note'],
-            'created_at' => date('M j, Y g:i A', strtotime($n['created_at'])),
-            'updated_at' => date('M j, Y g:i A', strtotime($n['updated_at'])),
-          );
-        }
-        echo json_encode($notesMap);
-      ?>;
-      </script>
     </div>
   </section>
 
@@ -600,6 +652,7 @@ $_cvExists = ($_cvRelPath !== null);
   <!-- Contact Section -->
   <section id="contact" class="contact">
     <div class="container">
+      <span class="section-label">// contact</span>
       <h2>Get In Touch</h2>
       <div class="contact-content">
         <form class="contact-form" id="contactForm" novalidate>
