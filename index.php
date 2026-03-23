@@ -265,14 +265,14 @@ $_cvExists = ($_cvRelPath !== null);
         max-width: 100%;
       }
     }
-    /* ── LinkedIn profile card (replaces broken SDK badge) ──────────────── */
+    /* ── LinkedIn profile card (dark mode) ──────────────────────────────── */
     .li-profile-card {
       display: flex;
       align-items: center;
       gap: 1rem;
       padding: 1rem 1.25rem;
-      background: linear-gradient(135deg, #f0f7ff 0%, #e8f0fe 100%);
-      border: 1px solid #bfdbfe;
+      background: linear-gradient(135deg, #0d1b2a 0%, #0a1628 100%);
+      border: 1px solid rgba(10,102,194,0.35);
       border-radius: 0.75rem;
       text-decoration: none;
       transition: all 0.3s ease;
@@ -280,7 +280,7 @@ $_cvExists = ($_cvRelPath !== null);
     }
     .li-profile-card:hover {
       border-color: #0a66c2;
-      box-shadow: 0 6px 20px rgba(10,102,194,0.15);
+      box-shadow: 0 6px 20px rgba(10,102,194,0.25);
       transform: translateY(-2px);
     }
     .li-profile-card .li-logo {
@@ -299,13 +299,13 @@ $_cvExists = ($_cvRelPath !== null);
       fill: #fff;
     }
     .li-profile-card .li-info { display: flex; flex-direction: column; gap: 0.15rem; }
-    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: #1f2937; }
-    .li-profile-card .li-title { font-size: 0.8rem; color: #64748b; }
+    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: #f0f0f5; }
+    .li-profile-card .li-title { font-size: 0.8rem; color: #a0a0b8; }
     .li-profile-card .li-cta {
       margin-left: auto;
       font-size: 0.78rem;
       font-weight: 600;
-      color: #0a66c2;
+      color: #3b9ede;
       white-space: nowrap;
     }
   </style>
