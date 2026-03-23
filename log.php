@@ -14,48 +14,91 @@ function habitTargetForDate($logDate) {
 }
 
 function applyStreakRules($state, $logDate, $completedCount) {
-    $currentStreak = isset($state['current_streak']) ? (int)$state['current_streak'] : 0;
-    $bestStreak = isset($state['best_streak']) ? (int)$state['best_streak'] : 0;
-    $freezeBalance = isset($state['freeze_balance']) ? (int)$state['freeze_balance'] : 0;
+    $currentStreak  = isset($state['current_streak'])   ? (int)$state['current_streak']    : 0;
+    $bestStreak     = isset($state['best_streak'])      ? (int)$state['best_streak']        : 0;
+    $freezeBalance  = isset($state['freeze_balance'])   ? (int)$state['freeze_balance']     : 0;
     $lastActiveDate = isset($state['last_active_date']) ? (string)$state['last_active_date'] : '';
-    $feedbackType = 'success';
-    $feedbackText = 'Target met. Streak increased.';
+    $feedbackType   = 'success';
+    $feedbackText   = 'Target met. Streak continued.';
 
-    $target = habitTargetForDate($logDate);
+    $target    = habitTargetForDate($logDate);
     $targetMet = ((int)$completedCount >= (int)$target);
 
-    if ($targetMet) {
-        $currentStreak += 1;
+    // Calculate day gap between last active log and the current log date.
+    // -1 means no prior log exists (first log ever).
+    // Uses DateTime::diff to handle DST transitions correctly.
+    $dayGap = -1;
+    if ($lastActiveDate !== '') {
+        $d1 = DateTime::createFromFormat('Y-m-d', $lastActiveDate);
+        $d2 = DateTime::createFromFormat('Y-m-d', $logDate);
+        if ($d1 !== false && $d2 !== false) {
+            $diff = (int)$d1->diff($d2)->days;
+            // If last_active_date is in the future, treat as no prior log.
+            $dayGap = ($d2 >= $d1) ? $diff : -1;
+        }
+    }
+
+    $isSameDay = ($dayGap === 0);
+
+    if ($isSameDay) {
+        // Re-logging the same day: treat as idempotent – do not increment streak.
+        $feedbackType = 'success';
+        $feedbackText = 'Habits updated for today.';
         if ($currentStreak > $bestStreak) {
             $bestStreak = $currentStreak;
         }
-        if ((int)$completedCount >= 3) {
-            $freezeBalance += 1;
-        $feedbackType = 'earned';
-        $feedbackText = 'Target met. Freeze earned for 3+ completions.';
-        }
-        $lastActiveDate = $logDate;
     } else {
-        if ($freezeBalance > 0) {
-            $freezeBalance -= 1;
-        $feedbackType = 'freeze';
-            $feedbackText = '🧊 Freeze used. Streak protected.';
+        // Account for any fully missed days between the last active date and today.
+        // dayGap > 1 means (dayGap - 1) days were skipped without any log.
+        if ($dayGap > 1) {
+            $missedDays = $dayGap - 1;
+            if ($freezeBalance >= $missedDays) {
+                $freezeBalance -= $missedDays;
+            } else {
+                // Not enough freezes to cover all missed days – streak broken.
+                $freezeBalance = 0;
+                $currentStreak = 0;
+            }
+        }
+
+        // Apply today's target logic (dayGap === 1 or first log or consecutive after freeze).
+        if ($targetMet) {
+            $currentStreak += 1;
+            if ($currentStreak > $bestStreak) {
+                $bestStreak = $currentStreak;
+            }
+            $feedbackType   = 'success';
+            $feedbackText   = 'Target met. Streak continued.';
+            if ((int)$completedCount >= 3) {
+                $freezeBalance += 1;
+                $feedbackType  = 'earned';
+                $feedbackText  = 'Target met. Freeze earned for 3+ completions.';
+            }
+            $lastActiveDate = $logDate;
         } else {
-            $currentStreak = 0;
-        $feedbackType = 'reset';
-            $feedbackText = '💔 Streak reset. Target not met.';
+            if ($freezeBalance > 0) {
+                $freezeBalance -= 1;
+                $feedbackType   = 'freeze';
+                $feedbackText   = '🧊 Freeze used. Streak protected.';
+                // Advance last_active_date so tomorrow does not see a 2-day gap.
+                $lastActiveDate = $logDate;
+            } else {
+                $currentStreak  = 0;
+                $feedbackType   = 'reset';
+                $feedbackText   = '💔 Streak reset. Target not met.';
+            }
         }
     }
 
     return array(
-        'target' => $target,
-        'target_met' => $targetMet ? 1 : 0,
+        'target'        => $target,
+        'target_met'    => $targetMet ? 1 : 0,
         'feedback_type' => $feedbackType,
         'feedback_text' => $feedbackText,
         'state' => array(
-            'current_streak' => (int)$currentStreak,
-            'best_streak' => (int)$bestStreak,
-            'freeze_balance' => (int)$freezeBalance,
+            'current_streak'   => (int)$currentStreak,
+            'best_streak'      => (int)$bestStreak,
+            'freeze_balance'   => (int)$freezeBalance,
             'last_active_date' => $lastActiveDate,
         ),
     );

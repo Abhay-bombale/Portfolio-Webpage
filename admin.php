@@ -96,38 +96,73 @@ function habitTargetForDate($logDate) {
 }
 
 function applyStreakRules($state, $logDate, $completedCount) {
-  $currentStreak = isset($state['current_streak']) ? (int)$state['current_streak'] : 0;
-  $bestStreak = isset($state['best_streak']) ? (int)$state['best_streak'] : 0;
-  $freezeBalance = isset($state['freeze_balance']) ? (int)$state['freeze_balance'] : 0;
+  $currentStreak  = isset($state['current_streak'])   ? (int)$state['current_streak']    : 0;
+  $bestStreak     = isset($state['best_streak'])      ? (int)$state['best_streak']        : 0;
+  $freezeBalance  = isset($state['freeze_balance'])   ? (int)$state['freeze_balance']     : 0;
   $lastActiveDate = isset($state['last_active_date']) ? (string)$state['last_active_date'] : '';
 
-  $target = habitTargetForDate($logDate);
+  $target    = habitTargetForDate($logDate);
   $targetMet = ((int)$completedCount >= (int)$target);
 
-  if ($targetMet) {
-    $currentStreak += 1;
+  // Calculate day gap between last active log and the current log date.
+  // -1 means no prior log exists (first log ever).
+  // Uses DateTime::diff to handle DST transitions correctly.
+  $dayGap = -1;
+  if ($lastActiveDate !== '') {
+    $d1 = DateTime::createFromFormat('Y-m-d', $lastActiveDate);
+    $d2 = DateTime::createFromFormat('Y-m-d', $logDate);
+    if ($d1 !== false && $d2 !== false) {
+      $diff = (int)$d1->diff($d2)->days;
+      // If last_active_date is in the future, treat as no prior log.
+      $dayGap = ($d2 >= $d1) ? $diff : -1;
+    }
+  }
+
+  $isSameDay = ($dayGap === 0);
+
+  if ($isSameDay) {
+    // Re-logging the same day: treat as idempotent – do not increment streak.
     if ($currentStreak > $bestStreak) {
       $bestStreak = $currentStreak;
     }
-    if ((int)$completedCount >= 3) {
-      $freezeBalance += 1;
-    }
-    $lastActiveDate = $logDate;
   } else {
-    if ($freezeBalance > 0) {
-      $freezeBalance -= 1;
+    // Account for any fully missed days between the last active date and today.
+    if ($dayGap > 1) {
+      $missedDays = $dayGap - 1;
+      if ($freezeBalance >= $missedDays) {
+        $freezeBalance -= $missedDays;
+      } else {
+        $freezeBalance = 0;
+        $currentStreak = 0;
+      }
+    }
+
+    if ($targetMet) {
+      $currentStreak += 1;
+      if ($currentStreak > $bestStreak) {
+        $bestStreak = $currentStreak;
+      }
+      if ((int)$completedCount >= 3) {
+        $freezeBalance += 1;
+      }
+      $lastActiveDate = $logDate;
     } else {
-      $currentStreak = 0;
+      if ($freezeBalance > 0) {
+        $freezeBalance -= 1;
+        $lastActiveDate = $logDate;
+      } else {
+        $currentStreak = 0;
+      }
     }
   }
 
   return array(
-    'target' => $target,
+    'target'     => $target,
     'target_met' => $targetMet ? 1 : 0,
     'state' => array(
-      'current_streak' => (int)$currentStreak,
-      'best_streak' => (int)$bestStreak,
-      'freeze_balance' => (int)$freezeBalance,
+      'current_streak'   => (int)$currentStreak,
+      'best_streak'      => (int)$bestStreak,
+      'freeze_balance'   => (int)$freezeBalance,
       'last_active_date' => $lastActiveDate,
     ),
   );
