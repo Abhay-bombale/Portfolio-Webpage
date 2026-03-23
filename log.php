@@ -179,6 +179,19 @@ if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[
         $r->close();
     }
 
+    $selectedCount = 0;
+    foreach ($habits as $h) {
+      $habitId = (int)$h['id'];
+      if (isset($_POST['habit_' . $habitId])) {
+        $selectedCount++;
+      }
+    }
+    if ($selectedCount === 0) {
+      $_SESSION['log_flash'] = array('type' => 'reset', 'text' => 'Select at least one habit before saving.');
+      header('Location: log.php');
+      exit;
+    }
+
     $saveStmt = db()->prepare('INSERT INTO habit_logs (habit_id, log_date, completed) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE completed = VALUES(completed)');
 
     $completedCount = 0;
@@ -514,7 +527,7 @@ if (isset($_SESSION['log_flash'])) {
       <div class="log-error"><?php echo e($tableError); ?></div>
     <?php else: ?>
       <div class="log-card">
-        <form method="POST">
+        <form method="POST" id="habitsForm">
           <?php echo csrfField(); ?>
           <input type="hidden" name="action" value="save_habits" />
 
@@ -585,6 +598,17 @@ if (isset($_SESSION['log_flash'])) {
       cb.addEventListener('click', function(e) { e.stopPropagation() })
     }
   })
+
+  var habitsForm = document.getElementById('habitsForm')
+  if (habitsForm) {
+    habitsForm.addEventListener('submit', function(e) {
+      var checkedCount = habitsForm.querySelectorAll('input[type="checkbox"]:checked').length
+      if (checkedCount === 0) {
+        e.preventDefault()
+        alert('Select at least one habit before saving.')
+      }
+    })
+  }
   </script>
 </body>
 </html>
