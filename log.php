@@ -38,55 +38,44 @@ function applyStreakRules($state, $logDate, $completedCount) {
         }
     }
 
-    $isSameDay = ($dayGap === 0);
+    // Account for any fully missed days between the last active date and today.
+    // dayGap > 1 means (dayGap - 1) days were skipped without any log.
+    if ($dayGap > 1) {
+        $missedDays = $dayGap - 1;
+        if ($freezeBalance >= $missedDays) {
+            $freezeBalance -= $missedDays;
+        } else {
+            // Not enough freezes to cover all missed days – streak broken.
+            $freezeBalance = 0;
+            $currentStreak = 0;
+        }
+    }
 
-    if ($isSameDay) {
-        // Re-logging the same day: treat as idempotent – do not increment streak.
-        $feedbackType = 'success';
-        $feedbackText = 'Habits updated for today.';
+    // Apply today's target logic.
+    if ($targetMet) {
+        $currentStreak += 1;
         if ($currentStreak > $bestStreak) {
             $bestStreak = $currentStreak;
         }
-    } else {
-        // Account for any fully missed days between the last active date and today.
-        // dayGap > 1 means (dayGap - 1) days were skipped without any log.
-        if ($dayGap > 1) {
-            $missedDays = $dayGap - 1;
-            if ($freezeBalance >= $missedDays) {
-                $freezeBalance -= $missedDays;
-            } else {
-                // Not enough freezes to cover all missed days – streak broken.
-                $freezeBalance = 0;
-                $currentStreak = 0;
-            }
+        $feedbackType   = 'success';
+        $feedbackText   = 'Target met. Streak continued.';
+        if ((int)$completedCount >= 3) {
+            $freezeBalance += 1;
+            $feedbackType  = 'earned';
+            $feedbackText  = 'Target met. Freeze earned for 3+ completions.';
         }
-
-        // Apply today's target logic (dayGap === 1 or first log or consecutive after freeze).
-        if ($targetMet) {
-            $currentStreak += 1;
-            if ($currentStreak > $bestStreak) {
-                $bestStreak = $currentStreak;
-            }
-            $feedbackType   = 'success';
-            $feedbackText   = 'Target met. Streak continued.';
-            if ((int)$completedCount >= 3) {
-                $freezeBalance += 1;
-                $feedbackType  = 'earned';
-                $feedbackText  = 'Target met. Freeze earned for 3+ completions.';
-            }
+        $lastActiveDate = $logDate;
+    } else {
+        if ($freezeBalance > 0) {
+            $freezeBalance -= 1;
+            $feedbackType   = 'freeze';
+            $feedbackText   = '🧊 Freeze used. Streak protected.';
+            // Advance last_active_date so tomorrow does not see a 2-day gap.
             $lastActiveDate = $logDate;
         } else {
-            if ($freezeBalance > 0) {
-                $freezeBalance -= 1;
-                $feedbackType   = 'freeze';
-                $feedbackText   = '🧊 Freeze used. Streak protected.';
-                // Advance last_active_date so tomorrow does not see a 2-day gap.
-                $lastActiveDate = $logDate;
-            } else {
-                $currentStreak  = 0;
-                $feedbackType   = 'reset';
-                $feedbackText   = '💔 Streak reset. Target not met.';
-            }
+            $currentStreak  = 0;
+            $feedbackType   = 'reset';
+            $feedbackText   = '💔 Streak reset. Target not met.';
         }
     }
 
@@ -130,6 +119,61 @@ function loadStreakStateFromDb() {
         $r->close();
     }
     return $state;
+}
+
+// Load the streak state that was saved before the first log of today.
+// Used when re-logging on the same day so the streak is recalculated
+// from a clean base instead of compounding the previous save's effects.
+function loadPreTodayStateFromDb() {
+    $state = array(
+        'current_streak' => 0,
+        'best_streak' => 0,
+        'freeze_balance' => 0,
+        'last_active_date' => '',
+        'today_log_date' => '',
+    );
+    $r = db()->query('SELECT setting_key, setting_value FROM streak_state');
+    if ($r) {
+        while ($row = $r->fetch_assoc()) {
+            if ($row['setting_key'] === 'pre_today_current_streak') {
+                $state['current_streak'] = (int)$row['setting_value'];
+            }
+            if ($row['setting_key'] === 'pre_today_best_streak') {
+                $state['best_streak'] = (int)$row['setting_value'];
+            }
+            if ($row['setting_key'] === 'pre_today_freeze_balance') {
+                $state['freeze_balance'] = (int)$row['setting_value'];
+            }
+            if ($row['setting_key'] === 'pre_today_last_active_date') {
+                $state['last_active_date'] = (string)$row['setting_value'];
+            }
+            if ($row['setting_key'] === 'today_log_date') {
+                $state['today_log_date'] = (string)$row['setting_value'];
+            }
+        }
+        $r->close();
+    }
+    return $state;
+}
+
+// Persist the pre-today snapshot and mark which calendar date it was taken for.
+function savePreTodayStateToDb($state, $todayDate) {
+    $stmt = db()->prepare(
+        'INSERT INTO streak_state (setting_key, setting_value) VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)'
+    );
+    $pairs = array(
+        'pre_today_current_streak'    => (string)(int)$state['current_streak'],
+        'pre_today_best_streak'       => (string)(int)$state['best_streak'],
+        'pre_today_freeze_balance'    => (string)(int)$state['freeze_balance'],
+        'pre_today_last_active_date'  => (string)$state['last_active_date'],
+        'today_log_date'              => (string)$todayDate,
+    );
+    foreach ($pairs as $k => $v) {
+        $stmt->bind_param('ss', $k, $v);
+        $stmt->execute();
+    }
+    $stmt->close();
 }
 
 $today = date('Y-m-d');
@@ -181,15 +225,15 @@ if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[
 
     $selectedCount = 0;
     foreach ($habits as $h) {
-      $habitId = (int)$h['id'];
-      if (isset($_POST['habit_' . $habitId])) {
-        $selectedCount++;
-      }
+        $habitId = (int)$h['id'];
+        if (isset($_POST['habit_' . $habitId])) {
+            $selectedCount++;
+        }
     }
     if ($selectedCount === 0) {
-      $_SESSION['log_flash'] = array('type' => 'reset', 'text' => 'Select at least one habit before saving.');
-      header('Location: log.php');
-      exit;
+        $_SESSION['log_flash'] = array('type' => 'reset', 'text' => 'Select at least one habit before saving.');
+        header('Location: log.php');
+        exit;
     }
 
     $saveStmt = db()->prepare('INSERT INTO habit_logs (habit_id, log_date, completed) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE completed = VALUES(completed)');
@@ -208,8 +252,25 @@ if ($tableError === '' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST[
     }
     $saveStmt->close();
 
-    $streakState = loadStreakStateFromDb();
-    $result = applyStreakRules($streakState, $today, $completedCount);
+    // Load current streak state and the pre-today snapshot.
+    // On the first save of the day, snapshot the current state so any
+    // re-save today always recalculates from that clean baseline – this
+    // ensures unchecking habits later in the day correctly reverts streaks
+    // and freeze changes instead of stacking them.
+    $streakState   = loadStreakStateFromDb();
+    $preTodayState = loadPreTodayStateFromDb();
+
+    if ($preTodayState['today_log_date'] !== $today) {
+        // First log of this calendar day: save a snapshot of the state
+        // as it stood before any changes today.
+        savePreTodayStateToDb($streakState, $today);
+        $baseState = $streakState;
+    } else {
+        // Re-logging the same day: recalculate from today's opening state.
+        $baseState = $preTodayState;
+    }
+
+    $result = applyStreakRules($baseState, $today, $completedCount);
 
     $stateSaveStmt = db()->prepare('INSERT INTO streak_state (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
     foreach ($result['state'] as $k => $v) {
@@ -542,20 +603,20 @@ if (isset($_SESSION['log_flash'])) {
                 <span class="log-habit-name"><?php echo e($h['name']); ?></span>
               </label>
             <?php endforeach; ?>
+
+            <div class="log-progress">
+              <?php echo (int)$completedToday; ?> / <?php echo count($habits); ?> today - Target: <?php echo (int)$target; ?> (<?php echo ((int)date('N') >= 6) ? 'weekend' : 'weekday'; ?>)
+              <?php if ($targetMet): ?>
+                <span class="ok">✅ MET</span>
+              <?php else: ?>
+                <span class="no">❌ NOT YET</span>
+              <?php endif; ?>
+            </div>
+
+            <div class="log-actions">
+              <button type="submit" class="log-btn-save">Save Habits</button>
+            </div>
           <?php endif; ?>
-
-          <div class="log-progress">
-            <?php echo (int)$completedToday; ?> / <?php echo count($habits); ?> today - Target: <?php echo (int)$target; ?> (<?php echo ((int)date('N') >= 6) ? 'weekend' : 'weekday'; ?>)
-            <?php if ($targetMet): ?>
-              <span class="ok">✅ MET</span>
-            <?php else: ?>
-              <span class="no">❌ NOT YET</span>
-            <?php endif; ?>
-          </div>
-
-          <div class="log-actions">
-            <button type="submit" class="log-btn-save">Save Habits</button>
-          </div>
         </form>
 
         <div class="log-divider"></div>
