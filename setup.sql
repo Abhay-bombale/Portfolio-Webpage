@@ -161,10 +161,19 @@ CREATE TABLE IF NOT EXISTS `streak_state` (
 
 -- Seed streak defaults
 INSERT IGNORE INTO `streak_state` (`setting_key`, `setting_value`) VALUES
-  ('current_streak',  '0'),
-  ('best_streak',     '0'),
-  ('freeze_balance',  '0'),
-  ('last_active_date','');
+  ('current_streak',            '0'),
+  ('best_streak',               '0'),
+  ('freeze_balance',            '0'),
+  ('last_active_date',          '');
+
+-- Snapshot of streak state before any log was made on today_log_date.
+-- Used so same-day re-saves recalculate from a clean baseline.
+INSERT IGNORE INTO `streak_state` (`setting_key`, `setting_value`) VALUES
+  ('pre_today_current_streak',  '0'),
+  ('pre_today_best_streak',     '0'),
+  ('pre_today_freeze_balance',  '0'),
+  ('pre_today_last_active_date',''),
+  ('today_log_date',            '');
 
 -- Seed default habits
 INSERT IGNORE INTO `habits` (`id`, `name`, `emoji`, `sort_order`) VALUES
