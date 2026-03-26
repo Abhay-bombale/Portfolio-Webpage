@@ -655,7 +655,7 @@ $_cvExists = ($_cvRelPath !== null);
       <span class="section-label">// contact</span>
       <h2>Get In Touch</h2>
       <div class="contact-content">
-        <form class="contact-form" id="contactForm" novalidate>
+        <form class="contact-form" id="contactForm">
           <!-- Honeypot field — hidden from real users, catches bots -->
           <div style="position:absolute;left:-9999px;" aria-hidden="true">
             <input type="text" name="website" tabindex="-1" autocomplete="off" />

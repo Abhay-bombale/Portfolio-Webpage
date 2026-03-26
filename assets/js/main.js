@@ -81,28 +81,49 @@ function closeMobileMenu() {
   setMenuState(false)
 }
 
+var navViewportSyncRaf = null
+
 function syncMobileNavViewportVars() {
   if (!navbar) return
+
   var navHeight = Math.round(navbar.getBoundingClientRect().height || 64)
-  var viewportHeight = window.visualViewport
-    ? Math.round(window.visualViewport.height)
+  var vv = window.visualViewport
+  var viewportHeight = vv
+    ? Math.round(vv.height)
     : (window.innerHeight || document.documentElement.clientHeight || 0)
-  var available = Math.max(180, viewportHeight - navHeight)
+
+  // On mobile keyboards/split views, visualViewport can shift via offsetTop.
+  // Account for both reduced viewport height and offset to avoid clipped menus.
+  var keyboardInset = 0
+  if (vv) {
+    var layoutHeight = Math.round(window.innerHeight || document.documentElement.clientHeight || vv.height)
+    keyboardInset = Math.max(0, layoutHeight - Math.round(vv.height) - Math.round(vv.offsetTop || 0))
+  }
+
+  var available = Math.max(180, viewportHeight - navHeight - keyboardInset)
   document.documentElement.style.setProperty('--mobile-nav-offset', navHeight + 'px')
   document.documentElement.style.setProperty('--mobile-menu-max-height', available + 'px')
   document.documentElement.style.setProperty('--viewport-height', viewportHeight + 'px')
 }
 
+function queueMobileNavViewportSync() {
+  if (navViewportSyncRaf !== null) return
+  navViewportSyncRaf = window.requestAnimationFrame(function() {
+    syncMobileNavViewportVars()
+    navViewportSyncRaf = null
+  })
+}
+
 // ─── Mobile Menu: open/close with hamburger → X animation ────────────────────
 if (menuToggle && navLinks) {
 
-  syncMobileNavViewportVars()
+  queueMobileNavViewportSync()
 
   // Toggle menu on hamburger click
   menuToggle.addEventListener('click', function() {
     var isOpen = !navLinks.classList.contains('active')
     if (isOpen) {
-      syncMobileNavViewportVars()
+      queueMobileNavViewportSync()
     }
     setMenuState(isOpen)
   })
@@ -135,7 +156,7 @@ if (menuToggle && navLinks) {
 
   // Ensure state is reset when viewport changes to desktop width
   window.addEventListener('resize', function() {
-    syncMobileNavViewportVars()
+    queueMobileNavViewportSync()
     if (window.matchMedia('(min-width: 769px)').matches) {
       closeMobileMenu()
     }
@@ -143,7 +164,7 @@ if (menuToggle && navLinks) {
 
   window.addEventListener('orientationchange', function() {
     window.setTimeout(function() {
-      syncMobileNavViewportVars()
+      queueMobileNavViewportSync()
       if (window.matchMedia('(min-width: 769px)').matches) {
         closeMobileMenu()
       }
@@ -151,8 +172,8 @@ if (menuToggle && navLinks) {
   })
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncMobileNavViewportVars)
-    window.visualViewport.addEventListener('scroll', syncMobileNavViewportVars)
+    window.visualViewport.addEventListener('resize', queueMobileNavViewportSync)
+    window.visualViewport.addEventListener('scroll', queueMobileNavViewportSync)
   }
 }
 
@@ -189,6 +210,7 @@ function updateNavbar() {
   }
 
   var currentScrollY = window.scrollY
+  var isMenuOpen = document.documentElement.classList.contains('menu-open') || (navLinks && navLinks.classList.contains('active'))
 
   // Glass blur — activates after 20px
   if (currentScrollY > 20) {
@@ -198,12 +220,13 @@ function updateNavbar() {
   }
 
   // Hide on scroll down, show on scroll up — only after 80px
-  if (navLinks && navLinks.classList.contains('active')) {
+  if (isMenuOpen) {
     navbar.classList.remove('nav-hidden')
   } else if (currentScrollY > 80) {
-    if (currentScrollY > lastScrollY) {
+    var deltaY = currentScrollY - lastScrollY
+    if (deltaY > 4) {
       navbar.classList.add('nav-hidden')
-    } else {
+    } else if (deltaY < -4) {
       navbar.classList.remove('nav-hidden')
     }
   } else {
@@ -227,16 +250,63 @@ updateNavbar()
 // ─── Contact Form — PHP/MySQL backend ────────────────────────────────────────
 var contactForm = document.getElementById('contactForm')
 var formStatus  = document.getElementById('formStatus')
+var formStatusHideTimer = null
+
+function validateContactForm() {
+  if (!contactForm) return true
+
+  var nameField = document.getElementById('name')
+  var emailField = document.getElementById('email')
+  var messageInput = document.getElementById('message')
+
+  if (nameField && !nameField.value.trim()) {
+    showStatus('Please enter your name.', false)
+    nameField.focus()
+    return false
+  }
+
+  if (messageInput && !messageInput.value.trim()) {
+    showStatus('Please enter a message before sending.', false)
+    messageInput.focus()
+    return false
+  }
+
+  if (emailField && !emailField.checkValidity()) {
+    showStatus('Please enter a valid email address.', false)
+    emailField.focus()
+    return false
+  }
+
+  if (!contactForm.checkValidity()) {
+    contactForm.reportValidity()
+    return false
+  }
+
+  return true
+}
 
 function showStatus(message, isSuccess) {
   if (!formStatus) return
+  if (formStatusHideTimer) {
+    clearTimeout(formStatusHideTimer)
+    formStatusHideTimer = null
+  }
   formStatus.textContent   = message
   formStatus.style.display = 'block'
   formStatus.style.color   = isSuccess ? '#22c55e' : '#ef4444'
-  setTimeout(function() { formStatus.style.display = 'none' }, 6000)
+  formStatusHideTimer = setTimeout(function() {
+    formStatus.style.display = 'none'
+    formStatusHideTimer = null
+  }, 6000)
 }
 
 if (contactForm) {
+  var charCountEl = document.getElementById('charCount')
+  if (charCountEl) {
+    charCountEl.setAttribute('aria-live', 'polite')
+    charCountEl.setAttribute('aria-atomic', 'true')
+  }
+
   contactForm.addEventListener('invalid', function(e) {
     if (!e.target) return
     e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -245,6 +315,10 @@ if (contactForm) {
   contactForm.addEventListener('submit', async function(e) {
     e.preventDefault()
     e.stopPropagation()
+
+    if (!validateContactForm()) {
+      return
+    }
 
     var submitBtn    = document.getElementById('submitBtn')
     var originalText = submitBtn.textContent
@@ -327,7 +401,7 @@ function updateCharCount() {
   if (!messageField || !charCount) return
   var len = messageField.value.length
   charCount.textContent = len + ' / 2000'
-  charCount.style.color = len > 1800 ? '#ef4444' : ''
+  charCount.style.color = len > 1800 ? '#ef4444' : 'var(--text-light)'
 }
 
 if (messageField && charCount) {
@@ -340,7 +414,7 @@ var backToTop = document.getElementById('backToTop')
 
 if (backToTop) {
   window.addEventListener('scroll', function() {
-    if (window.scrollY > 400) {
+    if (window.scrollY > 300) {
       backToTop.classList.add('visible')
     } else {
       backToTop.classList.remove('visible')
@@ -354,7 +428,7 @@ if (backToTop) {
 
 // ─── Scroll reveal animations ────────────────────────────────────────────────
 if (!prefersReducedMotion) {
-  var revealElements = document.querySelectorAll('.skill-card, .project-card, .about-text, .cert-card')
+  var revealElements = document.querySelectorAll('.skill-card, .project-card, .about-text, .cert-card, .article-card')
   if (revealElements.length && 'IntersectionObserver' in window) {
     var revealObserver = new IntersectionObserver(function(entries) {
       entries.forEach(function(entry) {

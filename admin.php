@@ -42,6 +42,24 @@ if (isset($_GET['logout'])) {
 $loggedIn = !empty($_SESSION['admin_logged_in']);
 $tab      = isset($_GET['tab']) ? $_GET['tab'] : 'messages';
 
+function verifyGetCsrf() {
+  if (session_status() === PHP_SESSION_NONE) { session_start(); }
+  $token = isset($_GET['csrf_token']) ? (string)$_GET['csrf_token'] : '';
+  return (!empty($_SESSION['csrf_token']) && $token !== '' && hash_equals($_SESSION['csrf_token'], $token));
+}
+
+function adminActionHref($params) {
+  $params['csrf_token'] = csrfToken();
+  return '?' . http_build_query($params);
+}
+
+function setAdminFlash($type, $text) {
+  $_SESSION['admin_flash'] = array(
+    'type' => (string)$type,
+    'text' => (string)$text,
+  );
+}
+
 function tableHasColumn($table, $column) {
   $sql = 'SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1';
   $stmt = db()->prepare($sql);
@@ -362,6 +380,10 @@ if ($loggedIn && $tab === 'hero') {
     }
 
     if (isset($_GET['delete_hero'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for hero delete action.');
+        header('Location: ' . $baseUrl . '?tab=hero'); exit;
+      }
       $id = (int)$_GET['delete_hero'];
       $stmt = db()->prepare('SELECT image_path, is_active FROM hero_images WHERE id = ?');
       $stmt->bind_param('i', $id);
@@ -498,6 +520,10 @@ if ($loggedIn && $tab === 'articles') {
     }
 
     if (isset($_GET['delete_article'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for article delete action.');
+        header('Location: ' . $baseUrl . '?tab=articles'); exit;
+      }
       $id = (int)$_GET['delete_article'];
       $stmt = db()->prepare('SELECT cover_image FROM articles WHERE id = ?');
       $stmt->bind_param('i', $id);
@@ -554,6 +580,10 @@ if ($loggedIn && $tab === 'storage') {
     }
 
     if (isset($_GET['delete_storage'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for storage delete action.');
+        header('Location: ' . $baseUrl . '?tab=storage'); exit;
+      }
       $id = (int)$_GET['delete_storage'];
       $stmt = db()->prepare('SELECT stored_name FROM admin_storage_files WHERE id = ?');
       $stmt->bind_param('i', $id);
@@ -702,6 +732,10 @@ if ($loggedIn && $tab === 'skills') {
     }
 
     if (isset($_GET['delete_skill'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for skill delete action.');
+        header('Location: ' . $baseUrl . '?tab=skills'); exit;
+      }
         $id   = (int)$_GET['delete_skill'];
       if ($skillsHasImagePath) {
         $stmt = db()->prepare('SELECT image_path FROM skills WHERE id = ?');
@@ -814,6 +848,10 @@ if ($loggedIn && $tab === 'projects') {
     }
 
     if (isset($_GET['delete_project'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for project delete action.');
+        header('Location: ' . $baseUrl . '?tab=projects'); exit;
+      }
         $id   = (int)$_GET['delete_project'];
       if ($projectsHasImagePath) {
         $stmt = db()->prepare('SELECT image_path FROM projects WHERE id = ?');
@@ -924,6 +962,10 @@ if ($loggedIn && $tab === 'certs') {
     }
 
     if (isset($_GET['delete_cert'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for certification delete action.');
+        header('Location: ' . $baseUrl . '?tab=certs'); exit;
+      }
         $id   = (int)$_GET['delete_cert'];
         // Delete image file
         $stmt = db()->prepare('SELECT image_path FROM certifications WHERE id = ?');
@@ -1015,6 +1057,10 @@ if ($loggedIn && $tab === 'embeds') {
     }
 
     if (isset($_GET['delete_embed'])) {
+      if (!verifyGetCsrf()) {
+        setAdminFlash('error', 'Invalid request token for embed delete action.');
+        header('Location: ' . $baseUrl . '?tab=embeds'); exit;
+      }
         $id   = (int)$_GET['delete_embed'];
         $stmt = db()->prepare('DELETE FROM social_embeds WHERE id = ?');
         $stmt->bind_param('i', $id);
@@ -1036,6 +1082,11 @@ $limit       = 10;
 $offset      = ($currentPage - 1) * $limit;
 
 if ($loggedIn && isset($_GET['delete'])) {
+  if (!verifyGetCsrf()) {
+    setAdminFlash('error', 'Invalid request token for message delete action.');
+    $qs = http_build_query(array_filter(array('tab' => 'messages', 'page' => isset($_GET['page']) ? $_GET['page'] : '', 'search' => $search)));
+    header('Location: ' . $baseUrl . ($qs ? '?' . $qs : '?tab=messages')); exit;
+  }
     $id   = (int)$_GET['delete'];
     $stmt = db()->prepare('DELETE FROM contacts WHERE id = ?');
     $stmt->bind_param('i', $id);
@@ -1142,6 +1193,12 @@ if ($loggedIn) {
 $totalPages = $totalCount > 0 ? (int)ceil($totalCount / $limit) : 1;
 $searchSafe = e($search);
 
+$adminFlash = null;
+if ($loggedIn && isset($_SESSION['admin_flash']) && is_array($_SESSION['admin_flash'])) {
+  $adminFlash = $_SESSION['admin_flash'];
+  unset($_SESSION['admin_flash']);
+}
+
 function pageUrl($page, $search, $base) {
     $qs = http_build_query(array_filter(array('tab' => 'messages', 'page' => $page, 'search' => $search)));
     return $base . ($qs ? '?' . $qs : '');
@@ -1187,6 +1244,7 @@ function pageUrl($page, $search, $base) {
     .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
     .btn-block   { width:100%; text-align:center; }
     .error-msg   { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#f87171; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
+    .success-msg { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.32); color:#4ade80; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
     .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
     .topbar-actions { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
     .topbar-brand { font-size:1.1rem; font-weight:700; color:var(--accent); }
@@ -1305,6 +1363,12 @@ function pageUrl($page, $search, $base) {
 
 <div class="main">
 
+  <?php if (!empty($adminFlash['text'])): ?>
+    <div class="<?php echo (isset($adminFlash['type']) && $adminFlash['type'] === 'success') ? 'success-msg' : 'error-msg'; ?>">
+      <?php echo e($adminFlash['text']); ?>
+    </div>
+  <?php endif; ?>
+
 <!-- ═══════════════════════ MESSAGES TAB ═════════════════════════════════════ -->
 <?php if ($tab === 'messages'): ?>
 
@@ -1359,6 +1423,7 @@ function pageUrl($page, $search, $base) {
                     'delete' => $msg['id'], 'tab' => 'messages',
                     'page'   => $currentPage > 1 ? $currentPage : '',
                     'search' => $search,
+                    'csrf_token' => csrfToken(),
                   )));
                 ?>
                 <a href="<?php echo $baseUrl . '?' . $dqs; ?>"
@@ -1438,7 +1503,7 @@ function pageUrl($page, $search, $base) {
                   <button class="btn btn-success" type="submit" name="set_active_hero">Set Active</button>
                 </form>
               <?php endif; ?>
-              <a href="?tab=hero&delete_hero=<?php echo (int)$h['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this hero image?')">🗑 Delete</a>
+              <a href="<?php echo adminActionHref(array('tab' => 'hero', 'delete_hero' => (int)$h['id'])); ?>" class="btn btn-danger" onclick="return confirm('Delete this hero image?')">🗑 Delete</a>
             </div>
           </div>
         <?php endforeach; ?>
@@ -1542,7 +1607,7 @@ function pageUrl($page, $search, $base) {
           <div class="item-card-meta" style="font-size:.8rem;color:var(--muted);margin-bottom:.5rem;">Sort Order: <?php echo (int)$s['sort_order']; ?></div>
           <div class="item-card-footer">
             <a href="?tab=skills&edit_skill=<?php echo (int)$s['id']; ?>" class="btn btn-warning">✏️ Edit</a>
-            <a href="?tab=skills&delete_skill=<?php echo (int)$s['id']; ?>"
+            <a href="<?php echo adminActionHref(array('tab' => 'skills', 'delete_skill' => (int)$s['id'])); ?>"
                class="btn btn-danger"
                onclick="return confirm('Delete skill: <?php echo e(addslashes($s['title'])); ?>?')">🗑 Delete</a>
           </div>
@@ -1656,7 +1721,7 @@ function pageUrl($page, $search, $base) {
           <div style="font-size:.78rem;color:var(--muted);">Sort Order: <?php echo (int)$c['sort_order']; ?></div>
           <div class="item-card-footer">
             <a href="?tab=certs&edit_cert=<?php echo (int)$c['id']; ?>" class="btn btn-warning">✏️ Edit</a>
-            <a href="?tab=certs&delete_cert=<?php echo (int)$c['id']; ?>"
+            <a href="<?php echo adminActionHref(array('tab' => 'certs', 'delete_cert' => (int)$c['id'])); ?>"
                class="btn btn-danger"
                onclick="return confirm('Delete certification: <?php echo e(addslashes($c['title'])); ?>?')">🗑 Delete</a>
           </div>
@@ -1795,7 +1860,7 @@ function pageUrl($page, $search, $base) {
           <?php endif; ?>
           <div class="item-card-footer">
             <a href="?tab=projects&edit_project=<?php echo (int)$p['id']; ?>" class="btn btn-warning">✏️ Edit</a>
-            <a href="?tab=projects&delete_project=<?php echo (int)$p['id']; ?>"
+            <a href="<?php echo adminActionHref(array('tab' => 'projects', 'delete_project' => (int)$p['id'])); ?>"
                class="btn btn-danger"
                onclick="return confirm('Delete project: <?php echo e(addslashes($p['title'])); ?>?')">🗑 Delete</a>
           </div>
@@ -2017,7 +2082,7 @@ function pageUrl($page, $search, $base) {
           <div class="item-card-desc"><?php echo e($a['excerpt']); ?></div>
           <div class="item-card-footer">
             <a href="?tab=articles&edit_article=<?php echo (int)$a['id']; ?>" class="btn btn-warning">✏️ Edit</a>
-            <a href="?tab=articles&delete_article=<?php echo (int)$a['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this article?')">🗑 Delete</a>
+            <a href="<?php echo adminActionHref(array('tab' => 'articles', 'delete_article' => (int)$a['id'])); ?>" class="btn btn-danger" onclick="return confirm('Delete this article?')">🗑 Delete</a>
           </div>
         </div>
       <?php endforeach; ?>
@@ -2066,7 +2131,7 @@ function pageUrl($page, $search, $base) {
               <td><a class="email-link" href="uploads/<?php echo e($sf['file_path']); ?>" target="_blank" rel="noopener">Open</a></td>
               <td><?php echo e($sf['created_at']); ?></td>
               <td>
-                <a href="?tab=storage&delete_storage=<?php echo (int)$sf['id']; ?>" class="btn btn-danger" onclick="return confirm('Delete this stored file?')">Delete</a>
+                <a href="<?php echo adminActionHref(array('tab' => 'storage', 'delete_storage' => (int)$sf['id'])); ?>" class="btn btn-danger" onclick="return confirm('Delete this stored file?')">Delete</a>
               </td>
             </tr>
           <?php endforeach; ?>
@@ -2158,7 +2223,7 @@ function pageUrl($page, $search, $base) {
           <div class="embed-preview"><?php echo $em['embed_code']; ?></div>
           <div class="item-card-footer">
             <a href="?tab=embeds&edit_embed=<?php echo (int)$em['id']; ?>" class="btn btn-warning">✏️ Edit</a>
-            <a href="?tab=embeds&delete_embed=<?php echo (int)$em['id']; ?>"
+            <a href="<?php echo adminActionHref(array('tab' => 'embeds', 'delete_embed' => (int)$em['id'])); ?>"
                class="btn btn-danger"
                onclick="return confirm('Delete this embed?')">🗑 Delete</a>
           </div>

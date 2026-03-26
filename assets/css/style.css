@@ -139,6 +139,11 @@
   }
   html { scroll-behavior: auto; }
   .reveal-on-scroll { opacity: 1; transform: none; }
+  .hero-subtitle::after,
+  .hero-badge-dot::after,
+  .li-badge-wrap::before {
+    animation: none !important;
+  }
 }
 
 /* Reset and Base Styles */
@@ -908,14 +913,15 @@ a:hover {
 }
 
 .form-group textarea {
-  min-height: 140px;
+  min-height: clamp(120px, 22vh, 180px);
+  resize: vertical;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
 }
 
 .contact-form .btn {
@@ -2495,6 +2501,11 @@ a:hover { color: var(--accent-dim); }
 
   .activity-note-date {
     font-size: 0.7rem;
+  }
+
+  .form-group textarea {
+    min-height: 110px;
+    max-height: 38vh;
   }
 }
 
