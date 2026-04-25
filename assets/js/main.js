@@ -22,41 +22,9 @@ var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
 var isNarrowViewport = window.matchMedia('(max-width: 768px)').matches
 var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0)
 
-// ─── Hero card 3D tilt (mouse-tracking) ──────────────────────────────────────
-var heroWrap = document.getElementById('heroCardWrap')
-var heroCard = document.getElementById('heroCard')
+// ─── Hero card 3D tilt disabled (minimalist aesthetic) ─────────────────────────
+// Removed for modern minimalist design
 
-if (heroWrap && heroCard && heroWrap.getAttribute('data-tilt') === '1' && !prefersReducedMotion && !isNarrowViewport && !isTouchDevice) {
-  var tiltMax    = 14
-  var tiltActive = false
-
-  heroWrap.addEventListener('mousemove', function(e) {
-    if (!tiltActive) {
-      tiltActive = true
-      window.requestAnimationFrame(function() {
-        var rect     = heroWrap.getBoundingClientRect()
-        var cx       = rect.left + rect.width  / 2
-        var cy       = rect.top  + rect.height / 2
-        var dx       = (e.clientX - cx) / (rect.width  / 2)
-        var dy       = (e.clientY - cy) / (rect.height / 2)
-        var rotateX  =  dy * -tiltMax
-        var rotateY  =  dx *  tiltMax
-        heroCard.style.webkitTransition = 'none'
-        heroCard.style.transition       = 'none'
-        heroCard.style.webkitTransform  = 'rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) translateZ(8px)'
-        heroCard.style.transform        = 'rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg) translateZ(8px)'
-        tiltActive = false
-      })
-    }
-  })
-
-  heroWrap.addEventListener('mouseleave', function() {
-    heroCard.style.webkitTransition = '-webkit-transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)'
-    heroCard.style.transition       = 'transform 0.6s cubic-bezier(0.23, 1, 0.32, 1)'
-    heroCard.style.webkitTransform  = 'rotateX(0deg) rotateY(0deg) translateZ(0)'
-    heroCard.style.transform        = 'rotateX(0deg) rotateY(0deg) translateZ(0)'
-  })
-}
 
 // ─── Navbar: element refs ─────────────────────────────────────────────────────
 var navbar     = document.querySelector('.navbar')

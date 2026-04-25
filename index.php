@@ -382,8 +382,7 @@ $_cvExists = ($_cvRelPath !== null);
         </div>
         <div class="hero-image">
           <div class="hero-card-wrap"
-               id="heroCardWrap"
-               data-tilt="<?php echo ($_settings['tilt_enabled'] === '1') ? '1' : '0'; ?>">
+               id="heroCardWrap">>
             <div class="hero-card" id="heroCard">
               <!-- Glow ring (decorative, behind card) -->
               <div class="hero-card-glow"></div>

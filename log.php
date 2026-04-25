@@ -387,7 +387,7 @@ if (isset($_SESSION['log_flash'])) {
       margin-bottom: 1rem;
     }
     .log-back {
-      color: #00d4ff;
+      color: #0066ff;
       text-decoration: none;
       font-weight: 600;
       font-size: 0.9rem;
@@ -532,7 +532,7 @@ if (isset($_SESSION['log_flash'])) {
       text-align: center;
     }
     .log-feedback.success { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
-    .log-feedback.freeze  { background: rgba(0,212,255,0.08); color: #00d4ff; border: 1px solid rgba(0,212,255,0.15); }
+    .log-feedback.freeze  { background: rgba(0,102,255,0.08); color: #0066ff; border: 1px solid rgba(0,102,255,0.15); }
     .log-feedback.reset   { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.15); }
     .log-feedback.earned  { background: rgba(255,107,43,0.1); color: #ff6b2b; border: 1px solid rgba(255,107,43,0.2); }
     .log-error {
