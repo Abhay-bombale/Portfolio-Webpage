@@ -178,10 +178,10 @@ $_cvExists = ($_cvRelPath !== null);
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="dark" />
   <title>Abhay | Student & Aspiring Cybersecurity Analyst</title>
   <meta name="description" content="Abhay Bombale's personal portfolio showcasing cybersecurity skills and projects." />
-  <link rel="canonical" href="https://abhaybombale.com/" />
+  <link rel="canonical" href="https://yourwebsite.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Abhay Bombale | Portfolio" />
   <meta property="og:description" content="Student & Aspiring Cybersecurity Analyst" />
@@ -265,14 +265,14 @@ $_cvExists = ($_cvRelPath !== null);
         max-width: 100%;
       }
     }
-    /* ── LinkedIn profile card (light mode) ──────────────────────────────── */
+    /* ── LinkedIn profile card (dark mode) ──────────────────────────────── */
     .li-profile-card {
       display: flex;
       align-items: center;
       gap: 1rem;
       padding: 1rem 1.25rem;
-      background: linear-gradient(135deg, #f0f7ff 0%, #e6f2ff 100%);
-      border: 1px solid rgba(10,102,194,0.2);
+      background: linear-gradient(135deg, #0d1b2a 0%, #0a1628 100%);
+      border: 1px solid rgba(10,102,194,0.35);
       border-radius: 0.75rem;
       text-decoration: none;
       transition: all 0.3s ease;
@@ -280,7 +280,7 @@ $_cvExists = ($_cvRelPath !== null);
     }
     .li-profile-card:hover {
       border-color: #0a66c2;
-      box-shadow: 0 6px 20px rgba(10,102,194,0.15);
+      box-shadow: 0 6px 20px rgba(10,102,194,0.25);
       transform: translateY(-2px);
     }
     .li-profile-card .li-logo {
@@ -299,8 +299,8 @@ $_cvExists = ($_cvRelPath !== null);
       fill: #fff;
     }
     .li-profile-card .li-info { display: flex; flex-direction: column; gap: 0.15rem; }
-    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: #1a1a1a; }
-    .li-profile-card .li-title { font-size: 0.8rem; color: #666666; }
+    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: #f0f0f5; }
+    .li-profile-card .li-title { font-size: 0.8rem; color: #a0a0b8; }
     .li-profile-card .li-cta {
       margin-left: auto;
       font-size: 0.78rem;
@@ -382,7 +382,8 @@ $_cvExists = ($_cvRelPath !== null);
         </div>
         <div class="hero-image">
           <div class="hero-card-wrap"
-               id="heroCardWrap">
+               id="heroCardWrap"
+               data-tilt="<?php echo ($_settings['tilt_enabled'] === '1') ? '1' : '0'; ?>">
             <div class="hero-card" id="heroCard">
               <!-- Glow ring (decorative, behind card) -->
               <div class="hero-card-glow"></div>

@@ -46,7 +46,7 @@ function eh($s) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light" />
+  <meta name="color-scheme" content="light dark" />
   <title><?php echo $article ? (eh($article['title']) . ' | Abhay Bombale') : 'Article Not Found | Abhay Bombale'; ?></title>
   <meta name="description" content="<?php echo $article ? eh($article['excerpt']) : 'Article not found'; ?>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -71,6 +71,12 @@ function eh($s) {
           <li><a href="index.php#home" class="nav-link">Home</a></li>
           <li><a href="index.php#articles" class="nav-link">Write-ups</a></li>
           <li><a href="index.php#contact" class="nav-link">Contact</a></li>
+          <li>
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+              <span class="theme-icon-light">☀️</span>
+              <span class="theme-icon-dark">🌙</span>
+            </button>
+          </li>
         </ul>
       </div>
     </div>
