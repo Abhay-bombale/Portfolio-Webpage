@@ -32,7 +32,7 @@ function eh($s) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="light dark" />
+  <meta name="color-scheme" content="light" />
   <title>Certifications | Abhay Bombale</title>
   <meta name="description" content="Certifications and credentials earned by Abhay Bombale." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
