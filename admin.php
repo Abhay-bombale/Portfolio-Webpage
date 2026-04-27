@@ -1213,17 +1213,17 @@ function pageUrl($page, $search, $base) {
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --surface2: #20243a;
-      --border:   #2a2d3e;
-      --accent:   #6366f1;
-      --accent-h: #818cf8;
+      --bg:       #ffffff;
+      --surface:  #f8f9fa;
+      --surface2: #f0f1f3;
+      --border:   rgba(0,0,0,0.08);
+      --accent:   #0066cc;
+      --accent-h: #0052a3;
       --danger:   #ef4444;
       --success:  #22c55e;
       --warning:  #f59e0b;
-      --text:     #e2e8f0;
-      --muted:    #64748b;
+      --text:     #1a1a2a;
+      --muted:    #4a5568;
       --radius:   10px;
     }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -1243,8 +1243,8 @@ function pageUrl($page, $search, $base) {
     .btn-warning { background:var(--warning); color:#000; font-size:.78rem; padding:.32rem .75rem; }
     .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
     .btn-block   { width:100%; text-align:center; }
-    .error-msg   { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#f87171; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
-    .success-msg { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.32); color:#4ade80; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
+    .error-msg   { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3); color:#dc2626; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
+    .success-msg { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.32); color:#16a34a; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
     .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
     .topbar-actions { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
     .topbar-brand { font-size:1.1rem; font-weight:700; color:var(--accent); }
@@ -2236,16 +2236,16 @@ function pageUrl($page, $search, $base) {
 <?php elseif ($tab === 'settings'): ?>
 
   <?php if ($settingsSaved): ?>
-    <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#16a34a;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+    <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#16a34a;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
       ✅ Settings saved successfully.
     </div>
   <?php endif; ?>
   <?php if (isset($_GET['cv_ok'])): ?>
-    <div style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#16a34a;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+    <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#16a34a;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
       ✅ Resume/CV uploaded successfully.
     </div>
   <?php elseif (isset($_GET['cv_error'])): ?>
-    <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+    <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);color:#dc2626;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
       ❌ Upload failed. Only PDF files up to 5 MB are accepted.
     </div>
   <?php endif; ?>

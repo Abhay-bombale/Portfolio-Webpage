@@ -41,10 +41,10 @@ module.exports = {
 
         // Primary Accent
         accent: {
-          DEFAULT: '#0066ff',  // Primary
-          dark: '#0052cc',     // Hover
-          light: 'rgba(0, 102, 255, 0.1)',
-          glow: 'rgba(0, 102, 255, 0.15)',
+          DEFAULT: '#0066cc',  // Primary
+          dark: '#0052a3',     // Hover
+          light: 'rgba(0, 102, 204, 0.1)',
+          glow: 'rgba(0, 102, 204, 0.05)',
         },
 
         // Semantic Colors
@@ -61,47 +61,47 @@ module.exports = {
           light: 'rgba(239, 68, 68, 0.1)',
         },
         info: {
-          DEFAULT: '#0066ff',  // Same as accent
-          light: 'rgba(0, 102, 255, 0.1)',
+          DEFAULT: '#0066cc',  // Same as accent
+          light: 'rgba(0, 102, 204, 0.1)',
         },
 
         // Orange (secondary)
         orange: {
           DEFAULT: '#ff6b2b',
-          glow: 'rgba(255, 107, 43, 0.15)',
+          glow: 'rgba(255, 107, 43, 0.1)',
         },
 
         // Background Colors
         bg: {
-          base: '#0a0a0f',       // Page background
-          surface: '#111118',     // Cards, elevated
-          elevated: '#1a1a24',    // Inputs, modals
-          overlay: '#22222e',     // Overlays
+          base: '#ffffff',        // Page background
+          surface: '#f8f9fa',     // Cards, elevated
+          elevated: '#f0f1f3',    // Inputs, modals
+          overlay: 'rgba(0, 0, 0, 0.5)',     // Overlays
         },
 
         // Text Colors
         text: {
-          primary: '#f0f0f5',     // Main text
-          secondary: '#a0a0b8',   // Secondary text
-          muted: '#5a5a78',       // Disabled, hints
+          primary: '#1a1a2a',     // Main text
+          secondary: '#4a5568',   // Secondary text
+          muted: '#a0aec0',       // Disabled, hints
         },
 
         // Border Colors
         border: {
-          DEFAULT: 'rgba(255, 255, 255, 0.07)',
-          accent: 'rgba(0, 102, 255, 0.25)',
-          hover: 'rgba(0, 102, 255, 0.5)',
+          DEFAULT: 'rgba(0, 0, 0, 0.08)',
+          accent: 'rgba(0, 102, 204, 0.25)',
+          hover: 'rgba(0, 102, 204, 0.5)',
         },
 
         // Gray scale (for compatibility)
         gray: {
-          900: '#0a0a0f',
-          800: '#111118',
-          700: '#1a1a24',
-          600: '#22222e',
-          500: '#5a5a78',
-          400: '#a0a0b8',
-          100: '#f0f0f5',
+          900: '#1a1a2a',
+          800: '#4a5568',
+          700: '#a0aec0',
+          600: '#cbd5e0',
+          500: '#e2e8f0',
+          400: '#f0f1f3',
+          100: '#ffffff',
         },
 
         // White/Black for edge cases
@@ -182,11 +182,11 @@ module.exports = {
       // SHADOWS
       // ──────────────────────────────────────────────────────────────────────────
       boxShadow: {
-        sm: '0 1px 3px rgba(0, 0, 0, 0.4)',
-        md: '0 4px 16px rgba(0, 0, 0, 0.5)',
-        lg: '0 12px 40px rgba(0, 0, 0, 0.6)',
-        accent: '0 0 30px rgba(0, 102, 255, 0.12)',
-        glow: '0 0 60px rgba(0, 102, 255, 0.08)',
+        sm: '0 1px 3px rgba(0, 0, 0, 0.08)',
+        md: '0 4px 16px rgba(0, 0, 0, 0.1)',
+        lg: '0 12px 40px rgba(0, 0, 0, 0.12)',
+        accent: '0 0 30px rgba(0, 102, 204, 0.08)',
+        glow: '0 0 60px rgba(0, 102, 204, 0.04)',
         none: 'none',
       },
 

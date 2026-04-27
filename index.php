@@ -271,22 +271,22 @@ $_cvExists = ($_cvRelPath !== null);
       align-items: center;
       gap: 1rem;
       padding: 1rem 1.25rem;
-      background: linear-gradient(135deg, #0d1b2a 0%, #0a1628 100%);
-      border: 1px solid rgba(10,102,194,0.35);
+      background: linear-gradient(135deg, #f8f9fa 0%, #f0f1f3 100%);
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 0.75rem;
       text-decoration: none;
       transition: all 0.3s ease;
       margin-bottom: 1.5rem;
     }
     .li-profile-card:hover {
-      border-color: #0a66c2;
-      box-shadow: 0 6px 20px rgba(10,102,194,0.25);
+      border-color: var(--accent);
+      box-shadow: 0 6px 20px rgba(0,102,204,0.15);
       transform: translateY(-2px);
     }
     .li-profile-card .li-logo {
       width: 44px;
       height: 44px;
-      background: #0a66c2;
+      background: var(--accent);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -299,13 +299,13 @@ $_cvExists = ($_cvRelPath !== null);
       fill: #fff;
     }
     .li-profile-card .li-info { display: flex; flex-direction: column; gap: 0.15rem; }
-    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: #f0f0f5; }
-    .li-profile-card .li-title { font-size: 0.8rem; color: #a0a0b8; }
+    .li-profile-card .li-name { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+    .li-profile-card .li-title { font-size: 0.8rem; color: var(--text-secondary); }
     .li-profile-card .li-cta {
       margin-left: auto;
       font-size: 0.78rem;
       font-weight: 600;
-      color: #3b9ede;
+      color: var(--accent);
       white-space: nowrap;
     }
   </style>
@@ -549,7 +549,7 @@ $_cvExists = ($_cvRelPath !== null);
       <h2>Skills</h2>
       <div class="skills-grid">
         <?php if (empty($_skills)): ?>
-          <p style="color:#6b7280;text-align:center;grid-column:1/-1;">No skills listed yet.</p>
+          <p style="color:var(--text-muted);text-align:center;grid-column:1/-1;">No skills listed yet.</p>
         <?php else: ?>
           <?php foreach ($_skills as $sk): ?>
             <div class="skill-card">
@@ -570,12 +570,12 @@ $_cvExists = ($_cvRelPath !== null);
       <h2>Projects</h2>
       <div class="projects-grid">
         <?php if (empty($_projects)): ?>
-          <p style="color:#6b7280;text-align:center;grid-column:1/-1;">No projects listed yet.</p>
+          <p style="color:var(--text-muted);text-align:center;grid-column:1/-1;">No projects listed yet.</p>
         <?php else: ?>
           <?php foreach ($_projects as $proj): ?>
             <div class="project-card">
               <div class="project-image" role="img" aria-label="<?= eh($proj['title']) ?> preview"
-                   style="background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:2rem;">
+                   style="background:linear-gradient(135deg,#f0f1f3,#e2e8f0);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--text-primary);">
                 <?= renderEmojiOrImage($proj['icon'], !empty($proj['image_path']) ? ('projects/' . $proj['image_path']) : '', $proj['title'], 92) ?>
               </div>
               <div class="project-content">
@@ -728,7 +728,7 @@ $_cvExists = ($_cvRelPath !== null);
     <div class="container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
       <p>&copy; 2026 Abhay Bombale. All rights reserved.</p>
       <a href="admin.php" title="Admin Panel"
-         style="font-size:0.78rem;color:#475569;text-decoration:none;opacity:0.45;transition:opacity 0.2s;"
+         style="font-size:0.78rem;color:var(--text-secondary);text-decoration:none;opacity:0.45;transition:opacity 0.2s;"
          onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.45'">🔐 Admin</a>
     </div>
   </footer>

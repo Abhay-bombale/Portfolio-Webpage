@@ -120,7 +120,7 @@ function eh($s) {
   <footer class="footer">
     <div class="container" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
       <p>&copy; 2026 Abhay Bombale. All rights reserved.</p>
-      <a href="admin.php" title="Admin Panel" style="font-size:0.78rem;color:#475569;text-decoration:none;opacity:0.45;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.45'">🔐 Admin</a>
+      <a href="admin.php" title="Admin Panel" style="font-size:0.78rem;color:var(--text-secondary);text-decoration:none;opacity:0.45;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.45'">🔐 Admin</a>
     </div>
   </footer>
 

@@ -1,31 +1,31 @@
 /* Root Variables */
 :root {
-  --bg-base: #0a0a0f;
-  --bg-surface: #111118;
-  --bg-elevated: #1a1a24;
-  --bg-overlay: #22222e;
+  --bg-base: #ffffff;
+  --bg-surface: #f8f9fa;
+  --bg-elevated: #f0f1f3;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
 
-  --accent: #00d4ff;
-  --accent-dim: #00a8cc;
-  --accent-glow: rgba(0, 212, 255, 0.15);
-  --accent-glow-lg: rgba(0, 212, 255, 0.08);
+  --accent: #0066cc;
+  --accent-dim: #0052a3;
+  --accent-glow: rgba(0, 102, 204, 0.1);
+  --accent-glow-lg: rgba(0, 102, 204, 0.05);
 
   --orange: #ff6b2b;
-  --orange-glow: rgba(255, 107, 43, 0.15);
+  --orange-glow: rgba(255, 107, 43, 0.1);
 
-  --text-primary: #f0f0f5;
-  --text-secondary: #a0a0b8;
-  --text-muted: #5a5a78;
+  --text-primary: #1a1a2a;
+  --text-secondary: #4a5568;
+  --text-muted: #a0aec0;
 
-  --border: rgba(255, 255, 255, 0.07);
-  --border-accent: rgba(0, 212, 255, 0.25);
-  --border-hover: rgba(0, 212, 255, 0.5);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-accent: rgba(0, 102, 204, 0.25);
+  --border-hover: rgba(0, 102, 204, 0.5);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 0 30px rgba(0, 212, 255, 0.12);
-  --shadow-glow: 0 0 60px rgba(0, 212, 255, 0.08);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+  --shadow-accent: 0 0 30px rgba(0, 102, 204, 0.08);
+  --shadow-glow: 0 0 60px rgba(0, 102, 204, 0.04);
 
   --font-display: 'Space Grotesk', 'Poppins', sans-serif;
   --font-body: 'DM Sans', 'Inter', system-ui, sans-serif;

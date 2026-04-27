@@ -368,9 +368,9 @@ if (isset($_SESSION['log_flash'])) {
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     body {
-      background: #0a0a0f;
+      background: #ffffff;
       font-family: 'DM Sans', system-ui, sans-serif;
-      color: #a0a0b8;
+      color: #4a5568;
       padding: 0;
       margin: 0;
     }
@@ -387,14 +387,14 @@ if (isset($_SESSION['log_flash'])) {
       margin-bottom: 1rem;
     }
     .log-back {
-      color: #00d4ff;
+      color: #0066cc;
       text-decoration: none;
       font-weight: 600;
       font-size: 0.9rem;
     }
     .log-card {
-      background: #1c1c24;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: #f8f9fa;
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 16px;
       padding: 1.5rem;
       margin-bottom: 1rem;
@@ -402,7 +402,7 @@ if (isset($_SESSION['log_flash'])) {
     .log-title {
       margin: 0;
       font-size: 1.2rem;
-      color: #f0f0f5;
+      color: #1a1a2a;
     }
     .log-streak-bar {
       display: flex;
@@ -420,18 +420,18 @@ if (isset($_SESSION['log_flash'])) {
     .log-streak-val {
       font-size: 2rem;
       font-weight: 700;
-      color: #f0f0f5;
+      color: #1a1a2a;
       line-height: 1;
     }
     .log-streak-label {
       font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: #5a5a78;
+      color: #a0aec0;
     }
     .log-progress-track {
       height: 4px;
-      background: #2a2a35;
+      background: #e2e8f0;
       border-radius: 2px;
       overflow: hidden;
       margin-top: 1rem;
@@ -446,7 +446,7 @@ if (isset($_SESSION['log_flash'])) {
     .log-progress {
       margin-top: 0.75rem;
       font-size: 0.85rem;
-      color: #a0a0b8;
+      color: #4a5568;
     }
     .log-progress .ok { color: #22c55e; font-weight: 600; }
     .log-progress .no { color: #ef4444; font-weight: 600; }
@@ -455,8 +455,8 @@ if (isset($_SESSION['log_flash'])) {
       align-items: center;
       gap: 1rem;
       padding: 1rem;
-      background: #22222e;
-      border: 1px solid rgba(255,255,255,0.05);
+      background: #f8f9fa;
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 10px;
       margin-bottom: 0.5rem;
       cursor: pointer;
@@ -466,7 +466,7 @@ if (isset($_SESSION['log_flash'])) {
     }
     .log-habit-row.checked {
       border-color: rgba(255, 107, 43, 0.4);
-      background: rgba(255, 107, 43, 0.06);
+      background: rgba(255, 107, 43, 0.08);
     }
     .log-habit-row input[type="checkbox"] {
       width: 20px;
@@ -476,18 +476,18 @@ if (isset($_SESSION['log_flash'])) {
       flex-shrink: 0;
     }
     .log-habit-emoji { font-size: 1.4rem; }
-    .log-habit-name  { font-size: 1rem; color: #f0f0f5; font-weight: 500; }
+    .log-habit-name  { font-size: 1rem; color: #1a1a2a; font-weight: 500; }
     .log-divider {
-      border-top: 1px dashed rgba(255,255,255,0.12);
+      border-top: 1px dashed rgba(0,0,0,0.12);
       margin: 1rem 0;
     }
     .log-note-textarea {
       width: 100%;
-      background: #22222e;
-      border: 1px solid rgba(255,255,255,0.06);
+      background: #f8f9fa;
+      border: 1px solid rgba(0,0,0,0.08);
       border-radius: 10px;
       padding: 0.9rem;
-      color: #f0f0f5;
+      color: #1a1a2a;
       font-size: 0.95rem;
       resize: vertical;
       min-height: 100px;
@@ -497,11 +497,11 @@ if (isset($_SESSION['log_flash'])) {
     }
     .log-note-textarea:focus {
       outline: none;
-      border-color: rgba(255, 107, 43, 0.4);
+      border-color: rgba(0, 102, 204, 0.4);
     }
     .log-note-meta {
       margin-top: 0.55rem;
-      color: #5a5a78;
+      color: #a0aec0;
       font-size: 0.78rem;
     }
     .log-actions { margin-top: 0.8rem; display: flex; gap: 0.6rem; flex-wrap: wrap; }
@@ -509,7 +509,7 @@ if (isset($_SESSION['log_flash'])) {
       width: 100%;
       padding: 0.9rem;
       background: #ff6b2b;
-      color: #0a0a0f;
+      color: #ffffff;
       border: none;
       border-radius: 10px;
       font-size: 1rem;
@@ -521,7 +521,7 @@ if (isset($_SESSION['log_flash'])) {
     }
     .log-btn-save:hover {
       background: #e8652a;
-      box-shadow: 0 0 24px rgba(255, 107, 43, 0.4);
+      box-shadow: 0 0 24px rgba(255, 107, 43, 0.3);
     }
     .log-feedback {
       padding: 0.75rem 1rem;
