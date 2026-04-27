@@ -285,8 +285,8 @@ module.exports = {
 
   plugins: [],
 
-  // Ensure dark mode is enabled
-  darkMode: ['class', '[data-theme="dark"]'],
+  // Dark mode disabled - site is now light-mode only
+  darkMode: false,
 
   // CorePlugins configuration
   corePlugins: {

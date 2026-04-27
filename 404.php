@@ -17,8 +17,8 @@ http_response_code(404);
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
+      background: #ffffff;
+      color: #1a1a1a;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -32,7 +32,7 @@ http_response_code(404);
       font-size: 8rem;
       font-weight: 700;
       line-height: 1;
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: linear-gradient(135deg, #0066ff, #8b5cf6);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -42,9 +42,10 @@ http_response_code(404);
       font-size: 1.5rem;
       font-weight: 600;
       margin-bottom: 0.75rem;
+      color: #1a1a1a;
     }
     .error-desc {
-      color: #94a3b8;
+      color: #666666;
       font-size: 1rem;
       margin-bottom: 2rem;
       line-height: 1.6;
@@ -52,8 +53,8 @@ http_response_code(404);
     .error-btn {
       display: inline-block;
       padding: 0.75rem 2rem;
-      background: #3b82f6;
-      color: #fff;
+      background: #0066ff;
+      color: #ffffff;
       border-radius: 8px;
       text-decoration: none;
       font-weight: 600;
@@ -61,7 +62,7 @@ http_response_code(404);
       transition: background 0.2s, transform 0.2s;
     }
     .error-btn:hover {
-      background: #2563eb;
+      background: #0052cc;
       transform: translateY(-2px);
     }
     .error-icon {

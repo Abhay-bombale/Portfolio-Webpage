@@ -1209,21 +1209,22 @@ function pageUrl($page, $search, $base) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
   <title>Admin Panel | Abhay Portfolio</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --surface2: #20243a;
-      --border:   #2a2d3e;
-      --accent:   #6366f1;
-      --accent-h: #818cf8;
-      --danger:   #ef4444;
-      --success:  #22c55e;
-      --warning:  #f59e0b;
-      --text:     #e2e8f0;
-      --muted:    #64748b;
+      --bg:       #ffffff;
+      --surface:  #f8f9fa;
+      --surface2: #f3f4f6;
+      --border:   #e5e7eb;
+      --accent:   #0066ff;
+      --accent-h: #0052cc;
+      --danger:   #dc2626;
+      --success:  #16a34a;
+      --warning:  #d97706;
+      --text:     #1a1a1a;
+      --muted:    #666666;
       --radius:   10px;
     }
     body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -1240,11 +1241,11 @@ function pageUrl($page, $search, $base) {
     .btn-primary { background:var(--accent); color:#fff; }
     .btn-success { background:var(--success); color:#fff; }
     .btn-danger  { background:var(--danger);  color:#fff; font-size:.78rem; padding:.32rem .75rem; }
-    .btn-warning { background:var(--warning); color:#000; font-size:.78rem; padding:.32rem .75rem; }
+    .btn-warning { background:var(--warning); color:#fff; font-size:.78rem; padding:.32rem .75rem; }
     .btn-outline { background:transparent; border:1px solid var(--border); color:var(--muted); }
     .btn-block   { width:100%; text-align:center; }
-    .error-msg   { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#f87171; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
-    .success-msg { background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.32); color:#4ade80; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
+    .error-msg   { background:rgba(220,38,38,.1); border:1px solid rgba(220,38,38,.2); color:#991b1b; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
+    .success-msg { background:rgba(22,163,74,.1); border:1px solid rgba(22,163,74,.2); color:#15803d; padding:.65rem .9rem; border-radius:6px; font-size:.875rem; margin-bottom:1.2rem; }
     .topbar { background:var(--surface); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
     .topbar-actions { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
     .topbar-brand { font-size:1.1rem; font-weight:700; color:var(--accent); }
@@ -1263,13 +1264,13 @@ function pageUrl($page, $search, $base) {
     .search-input:focus { border-color:var(--accent); }
     .table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; overflow-x:auto; }
     table { width:100%; border-collapse:collapse; font-size:.9rem; }
-    thead { background:rgba(99,102,241,.08); }
+    thead { background:rgba(0,102,255,.05); }
     th { padding:.85rem 1rem; text-align:left; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
     td { padding:.85rem 1rem; border-bottom:1px solid var(--border); vertical-align:middle; }
     tr:last-child td { border-bottom:none; }
-    tr:hover td { background:rgba(255,255,255,.02); }
-    .msg-text { max-width:340px; white-space:pre-wrap; word-break:break-word; color:#94a3b8; font-size:.85rem; }
-    .badge-id { background:rgba(99,102,241,.15); color:var(--accent-h); padding:.2rem .5rem; border-radius:4px; font-size:.78rem; font-weight:600; }
+    tr:hover td { background:rgba(0,102,255,.03); }
+    .msg-text { max-width:340px; white-space:pre-wrap; word-break:break-word; color:#666666; font-size:.85rem; }
+    .badge-id { background:rgba(0,102,255,.1); color:var(--accent-h); padding:.2rem .5rem; border-radius:4px; font-size:.78rem; font-weight:600; }
     .email-link { color:var(--accent-h); text-decoration:none; }
     .email-link:hover { text-decoration:underline; }
     .pagination { display:flex; gap:.4rem; justify-content:center; margin-top:1.5rem; flex-wrap:wrap; }
@@ -1292,13 +1293,13 @@ function pageUrl($page, $search, $base) {
     .item-card-title { font-weight:700; font-size:1rem; color:var(--text); }
     .item-card-desc { font-size:.875rem; color:var(--muted); line-height:1.6; flex:1; }
     .item-card-links { display:flex; gap:.5rem; flex-wrap:wrap; }
-    .item-card-link { color:var(--accent-h); text-decoration:none; padding:.2rem .55rem; background:rgba(99,102,241,.1); border-radius:4px; font-size:.78rem; }
-    .item-card-link:hover { background:rgba(99,102,241,.25); }
+    .item-card-link { color:var(--accent-h); text-decoration:none; padding:.2rem .55rem; background:rgba(0,102,255,.1); border-radius:4px; font-size:.78rem; }
+    .item-card-link:hover { background:rgba(0,102,255,.2); }
     .item-card-footer { display:flex; gap:.5rem; border-top:1px solid var(--border); padding-top:.8rem; margin-top:auto; flex-wrap:wrap; }
     .embed-preview { overflow:hidden; border-radius:6px; border:1px solid var(--border); background:#fff; display:flex; justify-content:center; padding:.5rem; }
     .empty-state { text-align:center; padding:3rem 1rem; color:var(--muted); }
     .empty-state .icon { font-size:2.5rem; margin-bottom:.8rem; }
-    code { background:rgba(99,102,241,.15); color:var(--accent-h); padding:.1rem .4rem; border-radius:4px; font-size:.85em; }
+    code { background:rgba(0,102,255,.1); color:var(--accent-h); padding:.1rem .4rem; border-radius:4px; font-size:.85em; }
     /* Toggle switch */
     .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; cursor:pointer; }
     .toggle-switch input { opacity:0; width:0; height:0; }
@@ -2245,7 +2246,7 @@ function pageUrl($page, $search, $base) {
       ✅ Resume/CV uploaded successfully.
     </div>
   <?php elseif (isset($_GET['cv_error'])): ?>
-    <div style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
+    <div style="background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.2);color:#991b1b;padding:.75rem 1rem;border-radius:8px;margin-bottom:1.5rem;font-weight:600;">
       ❌ Upload failed. Only PDF files up to 5 MB are accepted.
     </div>
   <?php endif; ?>

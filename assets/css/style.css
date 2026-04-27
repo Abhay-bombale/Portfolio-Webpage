@@ -12,44 +12,44 @@
   --spacing-5xl: 6rem;      /* 96px */
   --spacing-6xl: 8rem;      /* 128px */
 
-  /* ── Colors ────────────────────────────────────────────────────────────────── */
-  --bg-base: #0a0a0f;
-  --bg-surface: #111118;
-  --bg-elevated: #1a1a24;
-  --bg-overlay: #22222e;
+  /* ── Colors (Light Mode) ───────────────────────────────────────────────────── */
+  --bg-base: #ffffff;
+  --bg-surface: #f8f9fa;
+  --bg-elevated: #f3f4f6;
+  --bg-overlay: #e5e7eb;
 
   --accent: #0066ff;
   --accent-dim: #0052cc;
-  --accent-glow: rgba(0, 102, 255, 0.15);
-  --accent-glow-lg: rgba(0, 102, 255, 0.08);
+  --accent-glow: rgba(0, 102, 255, 0.1);
+  --accent-glow-lg: rgba(0, 102, 255, 0.05);
 
   --orange: #ff6b2b;
-  --orange-glow: rgba(255, 107, 43, 0.15);
+  --orange-glow: rgba(255, 107, 43, 0.1);
 
   /* ── Semantic Colors (State Feedback) ──────────────────────────────────────── */
-  --success: #22c55e;         /* Success state (green) */
-  --success-light: rgba(34, 197, 94, 0.1);
-  --warning: #f59e0b;         /* Warning state (amber) */
-  --warning-light: rgba(245, 158, 11, 0.1);
-  --danger: #ef4444;          /* Error state (red) */
-  --danger-light: rgba(239, 68, 68, 0.1);
+  --success: #16a34a;         /* Success state (green) */
+  --success-light: rgba(22, 163, 74, 0.1);
+  --warning: #d97706;         /* Warning state (amber) */
+  --warning-light: rgba(217, 119, 6, 0.1);
+  --danger: #dc2626;          /* Error state (red) */
+  --danger-light: rgba(220, 38, 38, 0.1);
   --info: #0066ff;            /* Info state (same as accent) */
   --info-light: rgba(0, 102, 255, 0.1);
 
-  --text-primary: #f0f0f5;
-  --text-secondary: #a0a0b8;
-  --text-muted: #5a5a78;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
 
-  --border: rgba(255, 255, 255, 0.07);
-  --border-accent: rgba(0, 102, 255, 0.25);
-  --border-hover: rgba(0, 102, 255, 0.5);
+  --border: rgba(0, 0, 0, 0.1);
+  --border-accent: rgba(0, 102, 255, 0.2);
+  --border-hover: rgba(0, 102, 255, 0.4);
 
   /* ── Shadows ────────────────────────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6);
-  --shadow-accent: 0 0 30px rgba(0, 102, 255, 0.12);
-  --shadow-glow: 0 0 60px rgba(0, 102, 255, 0.08);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.12);
+  --shadow-accent: 0 0 30px rgba(0, 102, 255, 0.08);
+  --shadow-glow: 0 0 60px rgba(0, 102, 255, 0.05);
 
   /* ── Typography ────────────────────────────────────────────────────────────── */
   --font-display: 'Space Grotesk', 'Poppins', sans-serif;
@@ -179,13 +179,6 @@ a:focus-visible {
 button:focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
-}
-
-/* Dark mode adjustment */
-@media (prefers-color-scheme: dark) {
-  :focus-visible {
-    outline-color: #00a8ff;
-  }
 }
 
 /* Respect prefers-reduced-motion */
@@ -432,10 +425,10 @@ a:hover {
   top: 0;
   left: 0;
   right: 0;
-  background-color: var(--bg-light);
-  border-bottom: 1px solid var(--border-color);
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
   z-index: 1000;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   /* Smooth slide up/down transition */
   transition: transform 0.35s ease, background-color 0.3s ease,
               box-shadow 0.3s ease, backdrop-filter 0.3s ease;
@@ -449,11 +442,11 @@ a:hover {
 
 /* Glass blur effect — activates after 20px scroll */
 .navbar.scrolled {
-  background-color: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
-  border-bottom-color: rgba(229, 231, 235, 0.6);
+  background-color: #ffffff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-bottom-color: #e0e0e0;
 }
 
 .nav-content {
@@ -467,7 +460,7 @@ a:hover {
   font-family: 'Poppins', sans-serif;
   font-weight: 700;
   font-size: 1.5rem;
-  color: var(--text-dark);
+  color: #1a1a1a;
   text-decoration: none;
   /* Subtle hover lift */
   transition: color 0.2s ease, transform 0.2s ease;
@@ -488,7 +481,7 @@ a:hover {
 /* Animated underline active indicator */
 .nav-link {
   font-weight: 500;
-  color: var(--text-dark);
+  color: #333333;
   transition: color 0.2s ease;
   position: relative;
   padding-bottom: 3px;
@@ -538,18 +531,18 @@ a:hover {
 }
 
 .menu-toggle:hover {
-  background-color: rgba(37, 99, 235, 0.07);
+  background-color: rgba(0, 102, 255, 0.08);
 }
 
 .menu-toggle:focus-visible {
-  background-color: rgba(37, 99, 235, 0.1);
+  background-color: rgba(0, 102, 255, 0.12);
 }
 
 .menu-toggle span {
   display: block;
   width: 22px;
   height: 2px;
-  background-color: var(--text-dark);
+  background-color: #1a1a1a;
   border-radius: 2px;
   transition: transform 0.3s ease, opacity 0.3s ease, width 0.3s ease;
   transform-origin: center;
@@ -1898,13 +1891,13 @@ a:hover { color: var(--accent-dim); }
 
 .btn-primary {
   background: var(--accent);
-  color: #0a0a0f;
+  color: #ffffff;
   box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
 }
 
 .btn-primary:hover {
   background: var(--accent-dim);
-  color: #0a0a0f;
+  color: #ffffff;
   box-shadow: 0 0 35px rgba(0, 212, 255, 0.5);
   -webkit-transform: translateY(-1px);
   transform: translateY(-1px);
