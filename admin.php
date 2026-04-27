@@ -60,6 +60,47 @@ function setAdminFlash($type, $text) {
   );
 }
 
+function describeUploadError($errorCode) {
+  switch ((int)$errorCode) {
+    case UPLOAD_ERR_INI_SIZE:
+      return 'The uploaded file exceeds the server upload limit.';
+    case UPLOAD_ERR_FORM_SIZE:
+      return 'The uploaded file exceeds the form limit.';
+    case UPLOAD_ERR_PARTIAL:
+      return 'The file was only partially uploaded.';
+    case UPLOAD_ERR_NO_FILE:
+      return 'No file was selected.';
+    case UPLOAD_ERR_NO_TMP_DIR:
+      return 'The server is missing a temporary folder.';
+    case UPLOAD_ERR_CANT_WRITE:
+      return 'The server failed to write the file to disk.';
+    case UPLOAD_ERR_EXTENSION:
+      return 'A PHP extension stopped the upload.';
+    default:
+      return 'The upload failed for an unknown reason.';
+  }
+}
+
+function formatAdminFileSize($bytes) {
+  $bytes = max(0, (int)$bytes);
+  if ($bytes < 1024) {
+    return $bytes . ' B';
+  }
+  if ($bytes >= 1073741824) {
+    return number_format($bytes / 1073741824, 1) . ' GB';
+  }
+  if ($bytes >= 1048576) {
+    return number_format($bytes / 1048576, 1) . ' MB';
+  }
+  return number_format($bytes / 1024, 1) . ' KB';
+}
+
+function logStorageUploadEvent($message) {
+  $logDir = __DIR__ . '/uploads/storage/';
+  if (!is_dir($logDir)) { @mkdir($logDir, 0755, true); }
+  @file_put_contents($logDir . 'upload_debug.log', '[' . date('Y-m-d H:i:s') . '] ' . $message . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
 function tableHasColumn($table, $column) {
   $sql = 'SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1';
   $stmt = db()->prepare($sql);
@@ -554,6 +595,20 @@ if ($loggedIn && $tab === 'storage') {
   } else {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_storage_file'])) {
       if (verifyCsrf()) {
+        $uploadField = 'storage_file';
+        if (!isset($_FILES[$uploadField]) || !is_array($_FILES[$uploadField])) {
+          setAdminFlash('error', 'No file upload was received. Please try again.');
+          header('Location: ' . $baseUrl . '?tab=storage'); exit;
+        }
+
+        $uploadError = isset($_FILES[$uploadField]['error']) ? (int)$_FILES[$uploadField]['error'] : UPLOAD_ERR_NO_FILE;
+        if ($uploadError !== UPLOAD_ERR_OK) {
+          $message = describeUploadError($uploadError);
+          logStorageUploadEvent('Upload rejected with error code ' . $uploadError . ': ' . $message);
+          setAdminFlash('error', 'Upload failed: ' . $message . ' If you are uploading a 30MB file, check php.ini upload limits.');
+          header('Location: ' . $baseUrl . '?tab=storage'); exit;
+        }
+
         $allowed = array(
           'application/pdf' => 'pdf',
           'text/plain' => 'txt',
@@ -564,16 +619,20 @@ if ($loggedIn && $tab === 'storage') {
           'image/png' => 'png',
           'image/webp' => 'webp'
         );
-        $stored = uploadWithMimeMap('storage_file', 'store', $storageUploadDir, $allowed, $adminStorageMaxBytes);
+        $stored = uploadWithMimeMap($uploadField, 'store', $storageUploadDir, $allowed, $adminStorageMaxBytes);
         if ($stored !== '') {
-          $original = isset($_FILES['storage_file']['name']) ? basename($_FILES['storage_file']['name']) : $stored;
-          $mime = isset($_FILES['storage_file']['type']) ? (string)$_FILES['storage_file']['type'] : '';
-          $size = isset($_FILES['storage_file']['size']) ? (int)$_FILES['storage_file']['size'] : 0;
+          $original = isset($_FILES[$uploadField]['name']) ? basename($_FILES[$uploadField]['name']) : $stored;
+          $mime = isset($_FILES[$uploadField]['type']) ? (string)$_FILES[$uploadField]['type'] : '';
+          $size = isset($_FILES[$uploadField]['size']) ? (int)$_FILES[$uploadField]['size'] : 0;
           $relPath = 'storage/' . $stored;
           $stmt = db()->prepare('INSERT INTO admin_storage_files (stored_name, original_name, mime_type, file_size, file_path) VALUES (?, ?, ?, ?, ?)');
           $stmt->bind_param('sssis', $stored, $original, $mime, $size, $relPath);
           $stmt->execute();
           $stmt->close();
+          setAdminFlash('success', 'File uploaded successfully: ' . $original . ' (' . formatAdminFileSize($size) . ')');
+        } else {
+          logStorageUploadEvent('Upload failed after validation for file: ' . (isset($_FILES[$uploadField]['name']) ? basename((string)$_FILES[$uploadField]['name']) : 'unknown'));
+          setAdminFlash('error', 'Upload failed: the file type is not allowed or the file could not be saved.');
         }
       }
       header('Location: ' . $baseUrl . '?tab=storage'); exit;
@@ -2103,8 +2162,8 @@ function pageUrl($page, $search, $base) {
       <div class="panel-grid">
         <div class="form-group span-2">
           <label>Upload File</label>
-          <input type="file" name="storage_file" required style="padding:.4rem;" />
-          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Allowed: PDF, TXT, MD, CSV, ZIP, JPG, PNG, WebP</p>
+          <input type="file" name="storage_file" required style="padding:.4rem;" accept=".pdf,.txt,.md,.csv,.zip,.jpg,.jpeg,.png,.webp" />
+          <p style="font-size:.78rem;color:var(--muted);margin-top:.3rem;">Allowed: PDF, TXT, MD, CSV, ZIP, JPG, PNG, WebP. Large uploads may require PHP limit adjustments.</p>
         </div>
       </div>
       <div class="panel-actions">
@@ -2127,7 +2186,7 @@ function pageUrl($page, $search, $base) {
               <td><?php echo (int)$sf['id']; ?></td>
               <td><?php echo e($sf['original_name']); ?></td>
               <td><?php echo e($sf['mime_type']); ?></td>
-              <td><?php echo round(((int)$sf['file_size']) / 1024, 1); ?> KB</td>
+              <td><?php echo e(formatAdminFileSize((int)$sf['file_size'])); ?></td>
               <td><a class="email-link" href="uploads/<?php echo e($sf['file_path']); ?>" target="_blank" rel="noopener">Open</a></td>
               <td><?php echo e($sf['created_at']); ?></td>
               <td>

@@ -71,12 +71,6 @@ function eh($s) {
           <li><a href="index.php#home" class="nav-link">Home</a></li>
           <li><a href="index.php#articles" class="nav-link">Write-ups</a></li>
           <li><a href="index.php#contact" class="nav-link">Contact</a></li>
-          <li>
-            <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-              <span class="theme-icon-light">☀️</span>
-              <span class="theme-icon-dark">🌙</span>
-            </button>
-          </li>
         </ul>
       </div>
     </div>

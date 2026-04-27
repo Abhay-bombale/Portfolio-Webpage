@@ -408,139 +408,28 @@ $_cvExists = ($_cvRelPath !== null);
   <!-- About Section -->
   <section id="about" class="about">
     <div class="container">
-      <div class="about-grid">
-
-        <div class="about-left">
-          <span class="section-label">// about</span>
-          <h2>About Me</h2>
-          <div class="about-text">
-            <p>
-              I am an aspiring cybersecurity professional focused on vulnerability research and defensive
-              security. I am driven by understanding how systems are compromised and applying that knowledge
-              to design stronger security defences that protect organizations and their users.
-            </p>
-            <p>
-              I bring strong problem-solving ability, disciplined time management, and Python programming
-              skills to security challenges. I approach cybersecurity with an adversarial mindset while
-              maintaining professional responsibility and adherence to legal and ethical standards.
-            </p>
-            <p>
-              My goal is to help organizations reduce risk, prevent data breaches, and maintain secure
-              operations by continuously learning emerging threats and implementing practical, defense-focused
-              security solutions.
-            </p>
-            <a href="certifications.php" class="btn btn-secondary" style="margin-top:1rem;display:inline-block;">View My Certifications →</a>
-          </div>
-        </div>
-
-        <div class="about-right" id="activity">
-          <span class="section-label">// activity</span>
-          <h2>Daily Log</h2>
-          <p class="activity-subtitle">Logged daily. Click any cell to read what I worked on.</p>
-
-          <div class="activity-stats">
-            <div class="activity-stat-card">
-              <span class="activity-stat-icon">🔥</span>
-              <span class="activity-stat-value"><?php echo (int)$_habitData['current_streak']; ?></span>
-              <span class="activity-stat-label">Day Streak</span>
-            </div>
-            <div class="activity-stat-card">
-              <span class="activity-stat-icon">🏆</span>
-              <span class="activity-stat-value"><?php echo (int)$_habitData['best_streak']; ?></span>
-              <span class="activity-stat-label">Best Streak</span>
-            </div>
-            <div class="activity-stat-card">
-              <span class="activity-stat-icon">🧊</span>
-              <span class="activity-stat-value"><?php echo (int)$_habitData['freeze_balance']; ?></span>
-              <span class="activity-stat-label">Freezes Saved</span>
-            </div>
-          </div>
-
-          <div class="heatmap-wrap">
-            <div class="heatmap-month-labels" id="heatmapMonthLabels"></div>
-            <div class="heatmap-body">
-              <div class="heatmap-day-labels">
-                <span>Mon</span>
-                <span></span>
-                <span>Wed</span>
-                <span></span>
-                <span>Fri</span>
-                <span></span>
-                <span></span>
-              </div>
-              <div class="heatmap-grid" id="heatmapGrid">
-                <?php
-                $today = date('Y-m-d');
-                $year = (int)date('Y');
-                $startDate = $year . '-01-01';
-                $endDate = $year . '-12-31';
-                $startDow = (int)date('N', strtotime($startDate)) - 1;
-                $totalDays = (int)floor((strtotime($endDate) - strtotime($startDate)) / 86400);
-
-                for ($s = 0; $s < $startDow; $s++) {
-                  echo '<div class="heatmap-cell heatmap-spacer"></div>';
-                }
-
-                for ($i = 0; $i <= $totalDays; $i++) {
-                  $date = date('Y-m-d', strtotime($startDate . ' +' . $i . ' days'));
-                  $count = isset($_habitData['heatmap'][$date]) ? (int)$_habitData['heatmap'][$date] : 0;
-                  $level = 0;
-                  if ($count === 1) { $level = 1; }
-                  elseif ($count === 2) { $level = 2; }
-                  elseif ($count === 3) { $level = 3; }
-                  elseif ($count >= 4) { $level = 4; }
-                  $isToday = ($date === $today) ? ' heatmap-today' : '';
-                  $tip = $count > 0
-                    ? date('M j, Y', strtotime($date)) . ': ' . $count . ' habit' . ($count > 1 ? 's' : '')
-                    : date('M j, Y', strtotime($date)) . ': no activity';
-                  echo '<div class="heatmap-cell level-' . $level . $isToday . '"'
-                    . ' data-date="' . eh($date) . '"'
-                    . ' data-count="' . $count . '"'
-                    . ' data-future="' . (($date > $today) ? '1' : '0') . '"'
-                    . ' title="' . eh($tip) . '"'
-                    . '></div>';
-                }
-                ?>
-              </div>
-            </div>
-            <div class="heatmap-legend">
-              <span class="heatmap-legend-left">Learn how we count contributions</span>
-              <div class="heatmap-legend-right">
-                <span>Less</span>
-                <div class="heatmap-cell level-0"></div>
-                <div class="heatmap-cell level-1"></div>
-                <div class="heatmap-cell level-2"></div>
-                <div class="heatmap-cell level-3"></div>
-                <div class="heatmap-cell level-4"></div>
-                <span>More</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="activity-note-panel" id="activityNotePanel" style="display:none;">
-            <div class="activity-note-date" id="activityNoteDate"></div>
-            <div class="activity-note-text" id="activityNoteText"></div>
-            <div class="activity-note-meta" id="activityNoteMeta"></div>
-          </div>
-        </div>
-
+      <span class="section-label">// about</span>
+      <h2>About Me</h2>
+      <div class="about-text" style="max-width:800px;">
+        <p>
+          I am an aspiring cybersecurity professional focused on vulnerability research and defensive
+          security. I am driven by understanding how systems are compromised and applying that knowledge
+          to design stronger security defences that protect organizations and their users.
+        </p>
+        <p>
+          I bring strong problem-solving ability, disciplined time management, and Python programming
+          skills to security challenges. I approach cybersecurity with an adversarial mindset while
+          maintaining professional responsibility and adherence to legal and ethical standards.
+        </p>
+        <p>
+          My goal is to help organizations reduce risk, prevent data breaches, and maintain secure
+          operations by continuously learning emerging threats and implementing practical, defense-focused
+          security solutions.
+        </p>
+        <a href="certifications.php" class="btn btn-secondary" style="margin-top:1rem;display:inline-block;">View My Certifications →</a>
       </div>
     </div>
   </section>
-
-  <script>
-  window.habitNotes = <?php
-    $map = array();
-    foreach ($_habitData['recent_notes'] as $n) {
-      $map[$n['log_date']] = array(
-        'note'       => $n['note'],
-        'created_at' => date('M j, Y g:i A', strtotime($n['created_at'])),
-        'updated_at' => date('M j, Y g:i A', strtotime($n['updated_at'])),
-      );
-    }
-    echo json_encode($map);
-  ?>;
-  </script>
 
   <!-- Skills Section -->
   <section id="skills" class="skills">
