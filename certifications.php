@@ -26,6 +26,36 @@ if (!$_conn->connect_error) {
 function eh($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
+
+$pageDescription = 'Certifications and credentials earned by Abhay Bombale.';
+$pageCanonical = siteUrl('/certifications.php');
+$pageImage = seoImageUrl('assets/images/Profile.png');
+$pageSchema = array(
+  array(
+    '@context' => 'https://schema.org',
+    '@type' => 'CollectionPage',
+    'name' => 'Certifications | Abhay Bombale',
+    'description' => $pageDescription,
+    'url' => $pageCanonical,
+    'mainEntity' => array(
+      '@type' => 'ItemList',
+      'numberOfItems' => count($_certs),
+      'itemListElement' => array()
+    )
+  )
+);
+
+foreach ($_certs as $index => $cert) {
+  $pageSchema[0]['mainEntity']['itemListElement'][] = array(
+    '@type' => 'ListItem',
+    'position' => $index + 1,
+    'item' => array(
+      '@type' => 'Thing',
+      'name' => $cert['title'],
+      'image' => !empty($cert['image_path']) ? seoImageUrl('uploads/certs/' . $cert['image_path']) : null,
+    ),
+  );
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -33,8 +63,14 @@ function eh($s) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
-  <title>Certifications | Abhay Bombale</title>
-  <meta name="description" content="Certifications and credentials earned by Abhay Bombale." />
+  <?php renderSeoHead(array(
+  'title' => 'Certifications | Abhay Bombale',
+  'description' => $pageDescription,
+  'canonical' => $pageCanonical,
+  'image' => $pageImage,
+  'type' => 'website',
+  'schema' => $pageSchema
+  )); ?>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />

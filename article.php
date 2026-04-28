@@ -5,6 +5,12 @@ sendSecurityHeaders();
 $slug = trim(isset($_GET['slug']) ? $_GET['slug'] : '');
 $article = null;
 $settings = array('goatcounter_id' => '');
+$pageTitle = 'Article Not Found | Abhay Bombale';
+$pageDescription = 'Article not found';
+$pageCanonical = siteUrl('/article.php');
+$pageImage = seoImageUrl('assets/images/Profile.png');
+$pageRobots = 'index,follow';
+$pageSchema = array();
 
 if ($slug !== '') {
     $conn = @new mysqli($db_host, $db_user, $db_pass, $db_name);
@@ -35,6 +41,37 @@ if ($slug !== '') {
 
 if (!$article) {
     http_response_code(404);
+  header('X-Robots-Tag: noindex, nofollow');
+  $pageRobots = 'noindex,nofollow';
+} else {
+  $summary = trim((string)$article['excerpt']);
+  if ($summary === '') {
+    $summary = trim(preg_replace('/\s+/', ' ', strip_tags((string)$article['content'])));
+  }
+  if ($summary === '') {
+    $summary = 'Read the latest write-up from Abhay Bombale.';
+  }
+  $pageTitle = $article['title'] . ' | Abhay Bombale';
+  $pageDescription = function_exists('mb_substr') ? mb_substr($summary, 0, 160) : substr($summary, 0, 160);
+  $pageCanonical = siteUrl('/article.php?slug=' . rawurlencode($slug));
+  $pageImage = !empty($article['cover_image']) ? seoImageUrl('uploads/articles/' . $article['cover_image']) : seoImageUrl('assets/images/Profile.png');
+  $pageSchema = array(
+    array(
+      '@context' => 'https://schema.org',
+      '@type' => 'BlogPosting',
+      'headline' => $article['title'],
+      'description' => $pageDescription,
+      'author' => array(
+        '@type' => 'Person',
+        'name' => 'Abhay Bombale'
+      ),
+      'mainEntityOfPage' => $pageCanonical,
+      'url' => $pageCanonical,
+      'image' => $pageImage,
+      'datePublished' => !empty($article['published_at']) ? date('c', strtotime($article['published_at'])) : null,
+      'dateModified' => !empty($article['published_at']) ? date('c', strtotime($article['published_at'])) : null
+    )
+  );
 }
 
 function eh($s) {
@@ -47,8 +84,15 @@ function eh($s) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
-  <title><?php echo $article ? (eh($article['title']) . ' | Abhay Bombale') : 'Article Not Found | Abhay Bombale'; ?></title>
-  <meta name="description" content="<?php echo $article ? eh($article['excerpt']) : 'Article not found'; ?>" />
+  <?php renderSeoHead(array(
+    'title' => $pageTitle,
+    'description' => $pageDescription,
+    'canonical' => $pageCanonical,
+    'image' => $pageImage,
+    'robots' => $pageRobots,
+    'type' => 'article',
+    'schema' => $pageSchema
+  )); ?>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />

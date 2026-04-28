@@ -61,6 +61,130 @@ function e($s) {
     return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
+function envValue($key, $default = '') {
+    return isset($_ENV[$key]) && trim((string)$_ENV[$key]) !== '' ? trim((string)$_ENV[$key]) : $default;
+}
+
+function siteBaseUrl() {
+    $configured = envValue('SITE_URL', envValue('CANONICAL_URL', ''));
+    if ($configured !== '') {
+        return rtrim($configured, '/');
+    }
+
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+    $scheme = $isHttps ? 'https' : 'http';
+    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+    $scriptDir = isset($_SERVER['SCRIPT_NAME']) ? trim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/') : '';
+
+    $base = $scheme . '://' . $host;
+    if ($scriptDir !== '' && $scriptDir !== '.') {
+        $base .= '/' . $scriptDir;
+    }
+
+    return rtrim($base, '/');
+}
+
+function siteUrl($path = '') {
+    $path = (string)$path;
+    if ($path === '') {
+        return siteBaseUrl();
+    }
+    if (preg_match('~^https?://~i', $path)) {
+        return $path;
+    }
+    return siteBaseUrl() . '/' . ltrim($path, '/');
+}
+
+function seoImageUrl($path = '') {
+    return $path !== '' ? siteUrl($path) : '';
+}
+
+function renderSeoHead($options = array()) {
+    $defaults = array(
+        'title' => 'Abhay Bombale | Portfolio',
+        'description' => 'Abhay Bombale’s personal portfolio showcasing cybersecurity skills, projects, certifications, and write-ups.',
+        'canonical' => '',
+        'canonicalPath' => '',
+        'image' => siteUrl('assets/images/Profile.png'),
+        'type' => 'website',
+        'siteName' => 'Abhay Bombale',
+        'twitterCard' => 'summary_large_image',
+        'robots' => 'index,follow',
+        'locale' => 'en_US',
+        'schema' => array(),
+    );
+
+    $meta = array_merge($defaults, is_array($options) ? $options : array());
+    $title = trim((string)$meta['title']);
+    $description = trim((string)$meta['description']);
+    $canonical = trim((string)$meta['canonical']);
+    $canonicalPath = trim((string)$meta['canonicalPath']);
+    $image = trim((string)$meta['image']);
+    $siteName = trim((string)$meta['siteName']) !== '' ? trim((string)$meta['siteName']) : 'Abhay Bombale';
+
+    if ($canonical === '' && $canonicalPath !== '') {
+        $canonical = siteUrl($canonicalPath);
+    }
+
+    if ($canonical === '') {
+        $canonical = siteBaseUrl();
+    }
+
+    if ($title === '') {
+        $title = $siteName;
+    }
+
+    echo '<title>' . e($title) . '</title>' . PHP_EOL;
+    if ($description !== '') {
+        echo '<meta name="description" content="' . e($description) . '" />' . PHP_EOL;
+    }
+    if ($canonical !== '') {
+        echo '<link rel="canonical" href="' . e($canonical) . '" />' . PHP_EOL;
+    }
+    if (!empty($meta['robots'])) {
+        echo '<meta name="robots" content="' . e($meta['robots']) . '" />' . PHP_EOL;
+    }
+
+    echo '<meta property="og:type" content="' . e($meta['type']) . '" />' . PHP_EOL;
+    echo '<meta property="og:title" content="' . e($title) . '" />' . PHP_EOL;
+    if ($description !== '') {
+        echo '<meta property="og:description" content="' . e($description) . '" />' . PHP_EOL;
+    }
+    echo '<meta property="og:url" content="' . e($canonical) . '" />' . PHP_EOL;
+    echo '<meta property="og:site_name" content="' . e($siteName) . '" />' . PHP_EOL;
+    if ($image !== '') {
+        echo '<meta property="og:image" content="' . e($image) . '" />' . PHP_EOL;
+    }
+    if (!empty($meta['locale'])) {
+        echo '<meta property="og:locale" content="' . e($meta['locale']) . '" />' . PHP_EOL;
+    }
+
+    echo '<meta name="twitter:card" content="' . e($meta['twitterCard']) . '" />' . PHP_EOL;
+    echo '<meta name="twitter:title" content="' . e($title) . '" />' . PHP_EOL;
+    if ($description !== '') {
+        echo '<meta name="twitter:description" content="' . e($description) . '" />' . PHP_EOL;
+    }
+    if ($image !== '') {
+        echo '<meta name="twitter:image" content="' . e($image) . '" />' . PHP_EOL;
+    }
+
+    $schemaEntries = isset($meta['schema']) ? $meta['schema'] : array();
+    if (!is_array($schemaEntries)) {
+        $schemaEntries = array($schemaEntries);
+    }
+    foreach ($schemaEntries as $schema) {
+        if (empty($schema)) {
+            continue;
+        }
+        $schemaJson = is_string($schema)
+            ? $schema
+            : json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if ($schemaJson !== false && $schemaJson !== '') {
+            echo '<script type="application/ld+json">' . $schemaJson . '</script>' . PHP_EOL;
+        }
+    }
+}
+
 // ── Security headers ──────────────────────────────────────────────────────────
 function sendSecurityHeaders() {
     header('X-Content-Type-Options: nosniff');

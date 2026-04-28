@@ -2,13 +2,20 @@
 require_once __DIR__ . '/config.php';
 sendSecurityHeaders();
 http_response_code(404);
+header('X-Robots-Tag: noindex, nofollow');
 ?>
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>404 — Page Not Found | Abhay Bombale</title>
+  <?php renderSeoHead(array(
+    'title' => '404 — Page Not Found | Abhay Bombale',
+    'description' => 'The page you are looking for does not exist or has moved.',
+    'canonical' => siteUrl('/404.php'),
+    'image' => seoImageUrl('assets/images/Profile.png'),
+    'robots' => 'noindex,nofollow'
+  )); ?>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet" />

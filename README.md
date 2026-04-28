@@ -21,6 +21,7 @@ A fully dynamic, database-driven personal portfolio website built with **PHP**, 
 - **Scroll Animations** — Intersection Observer-based reveal animations for cards and sections.
 - **GoatCounter Analytics** — Privacy-friendly analytics integration (configurable from admin settings).
 - **SEO Ready** — OpenGraph tags, Twitter Card meta, JSON-LD structured data, and canonical URLs.
+- **Crawlability** — `robots.txt` plus dynamic/static sitemap coverage for public pages and articles.
 - **Accessibility** — Skip-to-content link, ARIA labels, keyboard-navigable mobile menu.
 - **Security** — CSRF tokens on all forms, prepared statements (no SQL injection), `X-Frame-Options`, `X-Content-Type-Options`, session timeouts, and bcrypt-compatible admin password hashing.
 
@@ -74,6 +75,8 @@ The site uses **9 MySQL tables**, all created by `setup.sql`:
 | `articles` | Article/write-up content with publish state and slug |
 | `admin_storage_files` | Admin mini-storage metadata |
 
+The homepage write-up section and `article.php` both read from the active database. If your local XAMPP database does not contain published rows in `articles`, the write-up section will intentionally stay hidden locally even though it appears on the production database.
+
 ---
 
 ## 🚀 Setup & Installation
@@ -106,6 +109,9 @@ LIVE_DB_HOST=your_live_host
 LIVE_DB_USER=your_live_db_user
 LIVE_DB_PASS=your_live_db_password
 LIVE_DB_NAME=your_live_db_name
+
+# Canonical base URL for SEO output
+SITE_URL=https://abhaybombale.page.gd
 
 # Admin credentials
 ADMIN_USER=admin

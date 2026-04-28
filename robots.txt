@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin.php
+Disallow: /log.php
+Disallow: /contact.php
+
+Sitemap: /sitemap.xml
+Sitemap: /sitemap.php

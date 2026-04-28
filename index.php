@@ -179,32 +179,28 @@ $_cvExists = ($_cvRelPath !== null);
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="dark" />
-  <title>Abhay | Student & Aspiring Cybersecurity Analyst</title>
-  <meta name="description" content="Abhay Bombale's personal portfolio showcasing cybersecurity skills and projects." />
-  <link rel="canonical" href="https://yourwebsite.com/" />
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Abhay Bombale | Portfolio" />
-  <meta property="og:description" content="Student & Aspiring Cybersecurity Analyst" />
-  <meta property="og:url" content="https://yourwebsite.com" />
-  <meta property="og:image" content="https://yourwebsite.com/assets/images/Profile.png" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Abhay Bombale | Portfolio" />
-  <meta name="twitter:description" content="Student & Aspiring Cybersecurity Analyst" />
-  <meta name="twitter:image" content="https://yourwebsite.com/assets/images/Profile.png" />
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    "name": "Abhay Bombale",
-    "url": "https://yourwebsite.com",
-    "jobTitle": "Student & Aspiring Cybersecurity Analyst",
-    "sameAs": [
-      "https://www.linkedin.com/in/abhaybombale/",
-      "https://github.com/Abhay-bombale",
-      "https://x.com/AbhayBombale"
-    ]
-  }
-  </script>
+  <?php
+    renderSeoHead(array(
+      'title' => 'Abhay Bombale | Student & Aspiring Cybersecurity Analyst',
+      'description' => 'Abhay Bombale’s personal portfolio showcasing cybersecurity skills, projects, certifications, and write-ups.',
+      'canonicalPath' => '/',
+      'image' => seoImageUrl('assets/images/Profile.png'),
+      'schema' => array(
+        array(
+          '@context' => 'https://schema.org',
+          '@type' => 'Person',
+          'name' => 'Abhay Bombale',
+          'url' => siteUrl('/'),
+          'jobTitle' => 'Student & Aspiring Cybersecurity Analyst',
+          'sameAs' => array(
+            'https://www.linkedin.com/in/abhaybombale/',
+            'https://github.com/Abhay-bombale',
+            'https://x.com/AbhayBombale'
+          )
+        )
+      )
+    ));
+  ?>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -366,7 +362,7 @@ $_cvExists = ($_cvRelPath !== null);
     <div class="container">
       <div class="hero-grid">
         <div class="hero-text">
-            <h1 class="hero-title">Hello I'm</h1>
+          <p class="hero-kicker">Hello I'm</p>
           <h1 class="hero-title">Abhay Bombale</h1>
           <p class="hero-subtitle" id="heroSubtitle" data-text="Student | Aspiring Cybersecurity Analyst"></p>
           <p class="hero-description">
